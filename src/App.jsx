@@ -209,7 +209,7 @@ export default function DomesticGolf() {
   const [deletePw, setDeletePw] = useState("");
   const [deletePwErr, setDeletePwErr] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", tee1: "", tee2: "", memo: "" });
+  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", tee1: "", tee2: "", teeSur1: 0, teeSur2: 0, memo: "" });
   const [teams, setTeams] = useState(1);
   const [rmType, setRmType] = useState("HIS33");
   const [customSell, setCustomSell] = useState("");
@@ -346,6 +346,8 @@ export default function DomesticGolf() {
           rmType: r.rm_type,
           tee1: r.tee1,
           tee2: r.tee2,
+          teeSur1: r.tee_sur1 || 0,
+          teeSur2: r.tee_sur2 || 0,
           memo: r.memo,
           createdAt: r.created_at,
         })));
@@ -370,8 +372,8 @@ export default function DomesticGolf() {
     if (!rmD2) return null;
     const rmOcc2 = rmD2.occ || 4;
     const rmCnt2 = r.teams * (rmOcc2 === 4 ? 1 : 2);
-    const teeSur1r = getTeeSur(r.tee1, true);
-    const teeSur2r = getTeeSur(r.tee2, false);
+    const teeSur1r = r.teeSur1 || 0;  // 수동 입력값만 사용
+    const teeSur2r = r.teeSur2 || 0;
     const gf1 = (c1[ss1]?.[dt1]?.[1] || 0) + teeSur1r + 2500;
     const gf2 = (c2[ss2]?.[dt2t]?.[0] || 0) + teeSur2r + 2500;
     const rmRate2 = getRmRate(rmD2, date);
@@ -607,6 +609,8 @@ export default function DomesticGolf() {
             { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
             { label: "1일차 티오프", node: <input style={inp} type="text" value={resForm.tee1} onChange={e => setResForm(p => ({...p, tee1: e.target.value}))} placeholder="예: 14:00" maxLength={5} /> },
             { label: "2일차 티오프", node: <input style={inp} type="text" value={resForm.tee2} onChange={e => setResForm(p => ({...p, tee2: e.target.value}))} placeholder="예: 07:00" maxLength={5} /> },
+            { label: "1일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur1||""} onChange={e => setResForm(p => ({...p, teeSur1: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" /> },
+            { label: "2일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur2||""} onChange={e => setResForm(p => ({...p, teeSur2: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" /> },
             { label: "메모", node: <input style={inp} placeholder="특이사항" value={resForm.memo} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} /> },
           ].map(({ label, node }) => (
             <div key={label}>
@@ -630,6 +634,8 @@ export default function DomesticGolf() {
               rm_type: resForm.rmType,
               tee1: resForm.tee1 || "",
               tee2: resForm.tee2 || "",
+              tee_sur1: resForm.teeSur1 || 0,
+              tee_sur2: resForm.teeSur2 || 0,
               memo: resForm.memo || "",
             }).then(data => {
               const r = data[0];
@@ -639,7 +645,7 @@ export default function DomesticGolf() {
                 combo: r.combo, teams: r.teams, rmType: r.rm_type,
                 tee1: r.tee1, tee2: r.tee2, memo: r.memo, createdAt: r.created_at,
               }]);
-              setResForm({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", tee1: "", tee2: "", memo: "" });
+              setResForm({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", tee1: "", tee2: "", teeSur1: 0, teeSur2: 0, memo: "" });
               setAgtTab("list");
             }).catch(e => alert("저장 오류: " + e.message));
           }}
