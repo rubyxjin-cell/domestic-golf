@@ -209,7 +209,7 @@ export default function DomesticGolf() {
   const [deletePw, setDeletePw] = useState("");
   const [deletePwErr, setDeletePwErr] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", tee1: "", tee2: "", teeSur1: 0, teeSur2: 0, memo: "" });
+  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, rmType: "HIS33", tee1: "", tee2: "", teeSur1: 0, teeSur2: 0, memo: "" });
   const [teams, setTeams] = useState(1);
   const [rmType, setRmType] = useState("HIS33");
   const [customSell, setCustomSell] = useState("");
@@ -348,6 +348,8 @@ export default function DomesticGolf() {
           tee2: r.tee2,
           teeSur1: r.tee_sur1 || 0,
           teeSur2: r.tee_sur2 || 0,
+          gfPpl: r.gf_ppl || 0,
+          bfPpl: r.bf_ppl || 0,
           memo: r.memo,
           createdAt: r.created_at,
         })));
@@ -367,24 +369,30 @@ export default function DomesticGolf() {
     const curC2 = COMBOS.find(c => c.key === r.combo) || COMBOS[0];
     const c1 = prod.courses[curC2.d1], c2 = prod.courses[curC2.d2];
     if (!c1 || !c2) return null;
-    const ppl2 = r.teams * 4;
+    const ppl2 = r.teams * 4;          // 객실 기준 인원
+    const gfPpl2 = r.gfPpl || ppl2;    // 그린피 실제 인원 (별도 설정 없으면 ppl2)
+    const bfPpl2 = r.bfPpl || gfPpl2;  // 조식 실제 인원
     const rmD2 = prod.rooms[r.rmType];
     if (!rmD2) return null;
     const rmOcc2 = rmD2.occ || 4;
     const rmCnt2 = r.teams * (rmOcc2 === 4 ? 1 : 2);
-    const teeSur1r = r.teeSur1 || 0;  // 수동 입력값만 사용
+    const teeSur1r = r.teeSur1 || 0;
     const teeSur2r = r.teeSur2 || 0;
     const gf1 = (c1[ss1]?.[dt1]?.[1] || 0) + teeSur1r + 2500;
     const gf2 = (c2[ss2]?.[dt2t]?.[0] || 0) + teeSur2r + 2500;
     const rmRate2 = getRmRate(rmD2, date);
-    const rmPP2 = Math.ceil(rmRate2 * rmCnt2 / ppl2);
+    const rmPP2 = Math.ceil(rmRate2 * rmCnt2 / ppl2);  // 객실은 항상 4인 기준
     const bfPP2 = (prod.breakfast?.[ss1] ?? prod.breakfast) || 0;
+    // 1인 소계 = 그린피 + 조식 + 객실
     const costPP2 = gf1 + gf2 + rmPP2 + bfPP2;
     const sellPP2 = costPP2;
     const teeSurAdj = showTeeSur ? 0 : -(teeSur1r + teeSur2r);
-    const totalAgt = (sellPP2 + teeSurAdj) * ppl2;
+    // 총액 = 그린피x실인원 + 조식x실인원 + 객실(4인기준유지)
+    const totalAgt = ((gf1 + gf2 + (showTeeSur ? 0 : -(teeSur1r+teeSur2r))) * gfPpl2)
+                   + (bfPP2 * bfPpl2)
+                   + (rmPP2 * ppl2);
     const cn1 = prod.courseNames[curC2.d1], cn2 = prod.courseNames[curC2.d2];
-    return { gf1, gf2, rmPP: rmPP2, bfPP: bfPP2, costPP: costPP2, sellPP: sellPP2, totalAgt, ppl: ppl2, rmCnt: rmCnt2, cn1, cn2, teeSur1: teeSur1r, teeSur2: teeSur2r };
+    return { gf1, gf2, rmPP: rmPP2, bfPP: bfPP2, costPP: costPP2, sellPP: sellPP2, totalAgt, ppl: ppl2, gfPpl: gfPpl2, bfPpl: bfPpl2, rmCnt: rmCnt2, cn1, cn2, teeSur1: teeSur1r, teeSur2: teeSur2r };
   };
 
   const COMBO_LABEL = { prv2: "회원제+회원제", pub2: "대중제+대중제", prv_pub: "회원제+대중제", pub_prv: "대중제+회원제", prv_pub_prv: "회원제+대중제+회원제", pub_prv_pub: "대중제+회원제+대중제", prv3: "회원제x3", pub3: "대중제x3", prv2_pub: "회원제x2+대중제", pub2_prv: "대중제x2+회원제", prv_pub2: "회원제+대중제x2", pub_prv2: "대중제+회원제x2", prv4: "회원제x4", pub4: "대중제x4", prv3_pub: "회원제x3+대중제", pub3_prv: "대중제x3+회원제" };
@@ -609,6 +617,8 @@ export default function DomesticGolf() {
             { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
             { label: "1일차 티오프", node: <input style={inp} type="text" value={resForm.tee1} onChange={e => setResForm(p => ({...p, tee1: e.target.value}))} placeholder="예: 14:00" maxLength={5} /> },
             { label: "2일차 티오프", node: <input style={inp} type="text" value={resForm.tee2} onChange={e => setResForm(p => ({...p, tee2: e.target.value}))} placeholder="예: 07:00" maxLength={5} /> },
+            { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: parseInt(e.target.value)||0}))} placeholder={String(resForm.teams*4) + "명 (자동)"} /> },
+            { label: "조식 인원 (비워두면 그린피 동일)", node: <input style={inp} type="number" value={resForm.bfPpl||""} onChange={e => setResForm(p => ({...p, bfPpl: parseInt(e.target.value)||0}))} placeholder="비워두면 자동" /> },
             { label: "1일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur1||""} onChange={e => setResForm(p => ({...p, teeSur1: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" /> },
             { label: "2일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur2||""} onChange={e => setResForm(p => ({...p, teeSur2: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" /> },
             { label: "메모", node: <input style={inp} placeholder="특이사항" value={resForm.memo} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} /> },
@@ -636,6 +646,8 @@ export default function DomesticGolf() {
               tee2: resForm.tee2 || "",
               tee_sur1: resForm.teeSur1 || 0,
               tee_sur2: resForm.teeSur2 || 0,
+              gf_ppl: resForm.gfPpl || 0,
+              bf_ppl: resForm.bfPpl || 0,
               memo: resForm.memo || "",
             }).then(data => {
               const r = data[0];
