@@ -467,8 +467,9 @@ export default function DomesticGolf() {
                   onKeyDown={e => {
                     if (e.key === "Enter") {
                       if (deletePw === agtAuthed?.pw) {
-                        setReservations(p => p.filter(r => r.id !== selRes.id));
-                        setAgtTab("list"); setSelRes(null); setShowDeleteConfirm(false); setDeletePw("");
+                        sbFetch("DELETE", "reservations?id=eq." + selRes.id)
+                          .then(() => { setReservations(p => p.filter(r => r.id !== selRes.id)); setAgtTab("list"); setSelRes(null); setShowDeleteConfirm(false); setDeletePw(""); })
+                          .catch(e => alert("삭제 오류: " + e.message));
                       } else { setDeletePwErr(true); }
                     }
                   }}
@@ -477,8 +478,9 @@ export default function DomesticGolf() {
                 />
                 <button onClick={() => {
                   if (deletePw === agtAuthed?.pw) {
-                    setReservations(p => p.filter(r => r.id !== selRes.id));
-                    setAgtTab("list"); setSelRes(null); setShowDeleteConfirm(false); setDeletePw("");
+                    sbFetch("DELETE", "reservations?id=eq." + selRes.id)
+                      .then(() => { setReservations(p => p.filter(r => r.id !== selRes.id)); setAgtTab("list"); setSelRes(null); setShowDeleteConfirm(false); setDeletePw(""); })
+                      .catch(e => alert("삭제 오류: " + e.message));
                   } else { setDeletePwErr(true); }
                 }} style={{ padding: "10px 16px", background: "#e74c3c", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>삭제 확인</button>
                 <button onClick={() => { setShowDeleteConfirm(false); setDeletePw(""); setDeletePwErr(false); }}
