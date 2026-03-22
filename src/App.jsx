@@ -1,5 +1,24 @@
 import { useState, useRef, useEffect } from "react";
 
+// Supabase 클라이언트
+const SUPABASE_URL = "https://qmzrpyyadoajwziqachm.supabase.co";
+const SUPABASE_KEY = "sb_publishable_RFXuOTusimP_z4m8OQMe4g_A0-Dl-qg";
+const sbFetch = async (method, path, body) => {
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
+    method,
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY,
+      "Content-Type": "application/json",
+      "Prefer": method === "POST" ? "return=representation" : "",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+};
+
 const loadH2C = () => new Promise((res, rej) => {
   if (window.html2canvas) { res(window.html2canvas); return; }
   const s = document.createElement("script");
@@ -183,6 +202,7 @@ export default function DomesticGolf() {
   const [agtPwErr, setAgtPwErr] = useState(false);
   const [reservations, setReservations] = useState([]);
   const [agtResLoaded, setAgtResLoaded] = useState(false);
+  const [agtResLoading, setAgtResLoading] = useState(false);
   const [selRes, setSelRes] = useState(null); // 선택된 예약 (인보이스용)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deletePw, setDeletePw] = useState("");
@@ -306,21 +326,32 @@ export default function DomesticGolf() {
     return () => clearTimeout(t);
   }, [products, loaded]);
 
-  // AGT 예약 localStorage
+  // AGT 예약 Supabase 로드
   useEffect(() => {
     if (!agtAuthed) return;
-    try {
-      const raw = localStorage.getItem("dm-agt-res-" + agtAuthed.id);
-      if (raw) setReservations(JSON.parse(raw));
-      else setReservations([]);
-    } catch(e) { setReservations([]); }
-    setAgtResLoaded(true);
+    setAgtResLoading(true);
+    sbFetch("GET", "reservations?agt_id=eq." + agtAuthed.id + "&order=dep_date.asc")
+      .then(data => {
+        setReservations((data || []).map(r => ({
+          id: r.id,
+          agtId: r.agt_id,
+          depDate: r.dep_date,
+          repName: r.rep_name,
+          phone: r.phone,
+          productId: r.product_id,
+          nights: r.nights,
+          combo: r.combo,
+          teams: r.teams,
+          rmType: r.rm_type,
+          tee1: r.tee1,
+          tee2: r.tee2,
+          memo: r.memo,
+          createdAt: r.created_at,
+        })));
+      })
+      .catch(() => setReservations([]))
+      .finally(() => { setAgtResLoaded(true); setAgtResLoading(false); });
   }, [agtAuthed]);
-
-  useEffect(() => {
-    if (!agtAuthed || !agtResLoaded) return;
-    try { localStorage.setItem("dm-agt-res-" + agtAuthed.id, JSON.stringify(reservations)); } catch(e) {}
-  }, [reservations, agtAuthed, agtResLoaded]);
 
   const calcForRes = (r) => {
     const resProd = products[r.productId || "alpensia"];
@@ -581,10 +612,30 @@ export default function DomesticGolf() {
         <button
           onClick={() => {
             if (!resForm.depDate || !resForm.repName) return alert("출발일과 대표자명은 필수입니다.");
-            const newRes = { ...resForm, id: Date.now(), agtId: agtAuthed.id, createdAt: new Date().toISOString() };
-            setReservations(p => [newRes, ...p]);
-            setResForm({ depDate: "", repName: "", phone: "", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", memo: "" });
-            setAgtTab("list");
+            sbFetch("POST", "reservations", {
+              agt_id: agtAuthed.id,
+              dep_date: resForm.depDate,
+              rep_name: resForm.repName,
+              phone: resForm.phone,
+              product_id: resForm.productId || "alpensia",
+              nights: resForm.nights,
+              combo: resForm.combo,
+              teams: resForm.teams,
+              rm_type: resForm.rmType,
+              tee1: resForm.tee1 || "",
+              tee2: resForm.tee2 || "",
+              memo: resForm.memo || "",
+            }).then(data => {
+              const r = data[0];
+              setReservations(p => [...p, {
+                id: r.id, agtId: r.agt_id, depDate: r.dep_date, repName: r.rep_name,
+                phone: r.phone, productId: r.product_id, nights: r.nights,
+                combo: r.combo, teams: r.teams, rmType: r.rm_type,
+                tee1: r.tee1, tee2: r.tee2, memo: r.memo, createdAt: r.created_at,
+              }]);
+              setResForm({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", tee1: "", tee2: "", memo: "" });
+              setAgtTab("list");
+            }).catch(e => alert("저장 오류: " + e.message));
           }}
           style={{ width: "100%", marginTop: "16px", padding: "14px", background: G.primary, color: "#fff", border: "none", borderRadius: "10px", fontSize: "15px", fontWeight: "800", cursor: "pointer" }}
         >
@@ -609,7 +660,7 @@ export default function DomesticGolf() {
           </div>
         </div>
         {reservations.length === 0 ? (
-          <div style={{ ...sc, textAlign: "center", color: "#bbb", padding: "40px" }}>등록된 예약이 없습니다</div>
+          agtResLoading ? <div style={{ ...sc, textAlign: "center", color: "#bbb", padding: "40px" }}>불러오는 중...</div> : <div style={{ ...sc, textAlign: "center", color: "#bbb", padding: "40px" }}>등록된 예약이 없습니다</div>
         ) : (
           <div style={sc}>
             {/* 헤더 */}
