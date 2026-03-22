@@ -204,6 +204,7 @@ export default function DomesticGolf() {
   const [agtResLoaded, setAgtResLoaded] = useState(false);
   const [agtResLoading, setAgtResLoading] = useState(false);
   const [selRes, setSelRes] = useState(null); // 선택된 예약 (인보이스용)
+  const [showTeeSur, setShowTeeSur] = useState(true); // 인보이스 시간추가금 표시 여부
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deletePw, setDeletePw] = useState("");
   const [deletePwErr, setDeletePwErr] = useState(false);
@@ -378,12 +379,13 @@ export default function DomesticGolf() {
     const bfPP2 = (prod.breakfast?.[ss1] ?? prod.breakfast) || 0;
     const costPP2 = gf1 + gf2 + rmPP2 + bfPP2;
     const sellPP2 = costPP2;
-    const totalAgt = sellPP2 * ppl2;
+    const teeSurAdj = showTeeSur ? 0 : -(teeSur1r + teeSur2r);
+    const totalAgt = (sellPP2 + teeSurAdj) * ppl2;
     const cn1 = prod.courseNames[curC2.d1], cn2 = prod.courseNames[curC2.d2];
     return { gf1, gf2, rmPP: rmPP2, bfPP: bfPP2, costPP: costPP2, sellPP: sellPP2, totalAgt, ppl: ppl2, rmCnt: rmCnt2, cn1, cn2, teeSur1: teeSur1r, teeSur2: teeSur2r };
   };
 
-  const COMBO_LABEL = { prv2: "회원제+회원제", pub2: "대중제+대중제", prv_pub: "회원제+대중제", pub_prv: "대중제+회원제" };
+  const COMBO_LABEL = { prv2: "회원제+회원제", pub2: "대중제+대중제", prv_pub: "회원제+대중제", pub_prv: "대중제+회원제", prv_pub_prv: "회원제+대중제+회원제", pub_prv_pub: "대중제+회원제+대중제", prv3: "회원제x3", pub3: "대중제x3", prv2_pub: "회원제x2+대중제", pub2_prv: "대중제x2+회원제", prv_pub2: "회원제+대중제x2", pub_prv2: "대중제+회원제x2", prv4: "회원제x4", pub4: "대중제x4", prv3_pub: "회원제x3+대중제", pub3_prv: "대중제x3+회원제" };
 
   const doAgtDownload = async () => {
     if (!agtInvoiceRef.current) return;
@@ -434,6 +436,10 @@ export default function DomesticGolf() {
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
             <button onClick={() => { setAgtTab("list"); setSelRes(null); setShowDeleteConfirm(false); setDeletePw(""); setDeletePwErr(false); }} style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #ddd", background: "#fff", cursor: "pointer", fontSize: "13px" }}>← 목록</button>
             <div style={{ fontSize: "16px", fontWeight: "800", color: G.primary }}>📄 인보이스</div>
+            <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: G.textMid, cursor: "pointer", marginLeft: "8px" }}>
+              <input type="checkbox" checked={showTeeSur} onChange={e => setShowTeeSur(e.target.checked)} style={{ accentColor: G.primary }} />
+              시간추가금
+            </label>
             <button onClick={doAgtDownload} style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "8px", border: "none", background: "#d32f2f", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📸 JPG 저장</button>
             <button onClick={() => { setShowDeleteConfirm(true); setDeletePw(""); setDeletePwErr(false); }}
               style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid #e74c3c", background: "#fff", color: "#e74c3c", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>🗑 삭제</button>
@@ -507,9 +513,9 @@ export default function DomesticGolf() {
                   <tbody>
                     {[
                       ["⛳ 1일차 " + inv.cn1 + " 2부" + (r.tee1 ? " T/O " + r.tee1 : ""), inv.gf1],
-                      ...(inv.teeSur1 > 0 ? [["  └ 시간 추가금 (7:30 이후)", inv.teeSur1]] : []),
+                      ...(inv.teeSur1 > 0 && showTeeSur ? [["  └ 시간 추가금 (7:30 이후)", inv.teeSur1]] : []),
                       ["⛳ 2일차 " + inv.cn2 + " 1부" + (r.tee2 ? " T/O " + r.tee2 : ""), inv.gf2],
-                      ...(inv.teeSur2 > 0 ? [["  └ 시간 추가금 (13시 이전)", inv.teeSur2]] : []),
+                      ...(inv.teeSur2 > 0 && showTeeSur ? [["  └ 시간 추가금 (13시 이전)", inv.teeSur2]] : []),
                       ["🏨 객실 ÷ " + inv.ppl + "인", inv.rmPP],
                       ["🥐 조식", inv.bfPP],
                     ].map(([label, amt]) => (
@@ -599,8 +605,8 @@ export default function DomesticGolf() {
             { label: "상품 구성", node: <select style={inp} value={resForm.combo} onChange={e => setResForm(p => ({...p, combo: e.target.value}))}>{Object.entries(COMBO_LABEL).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
             { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
             { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
-            { label: "1일차 티오프", node: <input style={inp} type="time" value={resForm.tee1} onChange={e => setResForm(p => ({...p, tee1: e.target.value}))} placeholder="14:00" /> },
-            { label: "2일차 티오프", node: <input style={inp} type="time" value={resForm.tee2} onChange={e => setResForm(p => ({...p, tee2: e.target.value}))} placeholder="07:00" /> },
+            { label: "1일차 티오프", node: <input style={inp} type="text" value={resForm.tee1} onChange={e => setResForm(p => ({...p, tee1: e.target.value}))} placeholder="예: 14:00" maxLength={5} /> },
+            { label: "2일차 티오프", node: <input style={inp} type="text" value={resForm.tee2} onChange={e => setResForm(p => ({...p, tee2: e.target.value}))} placeholder="예: 07:00" maxLength={5} /> },
             { label: "메모", node: <input style={inp} placeholder="특이사항" value={resForm.memo} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} /> },
           ].map(({ label, node }) => (
             <div key={label}>
