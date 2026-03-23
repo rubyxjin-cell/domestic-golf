@@ -10,7 +10,7 @@ const sbFetch = async (method, path, body) => {
       "apikey": SUPABASE_KEY,
       "Authorization": "Bearer " + SUPABASE_KEY,
       "Content-Type": "application/json",
-      "Prefer": method === "POST" ? "return=representation" : "",
+      "Prefer": method === "POST" ? "return=representation" : (method === "PATCH" ? "return=representation" : ""),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -209,6 +209,10 @@ export default function DomesticGolf() {
   const [deletePw, setDeletePw] = useState("");
   const [deletePwErr, setDeletePwErr] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editPw, setEditPw] = useState("");
+  const [editPwErr, setEditPwErr] = useState(false);
+  const [showEditPw, setShowEditPw] = useState(false);
   const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, rmType: "HIS33", tee1: "", tee2: "", teeSur1: 0, teeSur2: 0, memo: "" });
   const [teams, setTeams] = useState(1);
   const [rmType, setRmType] = useState("HIS33");
@@ -451,9 +455,30 @@ export default function DomesticGolf() {
               시간추가금
             </label>
             <button onClick={doAgtDownload} style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "8px", border: "none", background: "#d32f2f", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📸 JPG 저장</button>
+            <button onClick={() => { setShowEditPw(true); setEditPw(""); setEditPwErr(false); setEditMode(false); }}
+              style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid " + G.primary, background: "#fff", color: G.primary, fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>✏️ 수정</button>
             <button onClick={() => { setShowDeleteConfirm(true); setDeletePw(""); setDeletePwErr(false); }}
               style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid #e74c3c", background: "#fff", color: "#e74c3c", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>🗑 삭제</button>
           </div>
+
+          {/* 수정 비밀번호 확인 */}
+          {showEditPw && !editMode && (
+            <div style={{ marginBottom: "16px", padding: "16px", background: "#f0f7f3", borderRadius: "10px", border: "1px solid " + G.border }}>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: G.primary, marginBottom: "10px" }}>✏️ 수정하려면 비밀번호를 입력하세요</div>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <input type="password" maxLength={8} value={editPw}
+                  onChange={e => { setEditPw(e.target.value); setEditPwErr(false); }}
+                  onKeyDown={e => { if (e.key === "Enter") { if (editPw === agtAuthed?.pw) { setEditMode(true); setShowEditPw(false); setResForm({...selRes, depDate: selRes.depDate, productId: selRes.productId||"alpensia"}); setAgtTab("edit"); } else setEditPwErr(true); }}}
+                  placeholder="비밀번호 입력"
+                  style={{ ...inp, width: "160px", letterSpacing: "4px", fontSize: "16px", textAlign: "center" }} />
+                <button onClick={() => { if (editPw === agtAuthed?.pw) { setEditMode(true); setShowEditPw(false); setResForm({...selRes, productId: selRes.productId||"alpensia"}); setAgtTab("edit"); } else setEditPwErr(true); }}
+                  style={{ padding: "10px 16px", background: G.primary, color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>확인</button>
+                <button onClick={() => { setShowEditPw(false); setEditPw(""); setEditPwErr(false); }}
+                  style={{ padding: "10px 14px", background: "#fff", color: "#888", border: "1px solid #ddd", borderRadius: "8px", fontSize: "13px", cursor: "pointer" }}>취소</button>
+              </div>
+              {editPwErr && <div style={{ marginTop: "6px", fontSize: "12px", color: "#e74c3c", fontWeight: "700" }}>비밀번호가 틀렸습니다.</div>}
+            </div>
+          )}
 
           {/* 삭제 비밀번호 확인 */}
           {showDeleteConfirm && (
@@ -546,7 +571,12 @@ export default function DomesticGolf() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ fontSize: "12px", color: G.primary, fontWeight: "700" }}>총 청구금액</div>
-                      <div style={{ fontSize: "11px", color: "#888" }}>1인 ₩{fmt2(inv.sellPP)} × {inv.ppl}인</div>
+                      <div style={{ fontSize: "11px", color: "#888" }}>
+                        {inv.gfPpl === inv.ppl && inv.bfPpl === inv.ppl
+                          ? "1인 ₩" + fmt2(inv.sellPP) + " × " + inv.ppl + "인"
+                          : "그린피 ₩" + fmt2(inv.gf1 + inv.gf2) + "×" + inv.gfPpl + "인 + 조식 ₩" + fmt2(inv.bfPP) + "×" + inv.bfPpl + "인 + 객실 ₩" + fmt2(inv.rmPP) + "×" + inv.ppl + "인"
+                        }
+                      </div>
                     </div>
                     <div style={{ fontSize: "24px", fontWeight: "900", color: G.primary }}>₩{fmt2(inv.totalAgt)}</div>
                   </div>
@@ -599,6 +629,59 @@ export default function DomesticGolf() {
         </div>
       );
     }
+
+    // 예약 수정 폼
+    if (agtTab === "edit") return (
+      <div style={sc}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+          <button onClick={() => { setAgtTab("invoice"); setEditMode(false); }} style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #ddd", background: "#fff", cursor: "pointer", fontSize: "13px" }}>← 취소</button>
+          <div style={{ fontSize: "16px", fontWeight: "800", color: G.primary }}>✏️ 예약 수정</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: "12px" }}>
+          {[
+            { label: "출발일", node: <input type="date" style={inp} value={resForm.depDate} onChange={e => setResForm(p => ({...p, depDate: e.target.value}))} /> },
+            { label: "상품 (골프장)", node: <select style={inp} value={resForm.productId} onChange={e => setResForm(p => ({...p, productId: e.target.value}))}>{PRODUCT_LIST.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> },
+            { label: "대표자명", node: <input style={inp} value={resForm.repName} onChange={e => setResForm(p => ({...p, repName: e.target.value}))} /> },
+            { label: "연락처", node: <input style={inp} value={resForm.phone} onChange={e => setResForm(p => ({...p, phone: e.target.value}))} /> },
+            { label: "박수", node: <select style={inp} value={resForm.nights} onChange={e => setResForm(p => ({...p, nights: e.target.value}))}>{["1박2일","2박3일","3박4일"].map(v => <option key={v}>{v}</option>)}</select> },
+            { label: "상품 구성", node: <select style={inp} value={resForm.combo} onChange={e => setResForm(p => ({...p, combo: e.target.value}))}>{Object.entries(COMBO_LABEL).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
+            { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
+            { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
+            { label: "1일차 티오프", node: <input style={inp} type="text" value={resForm.tee1||""} onChange={e => setResForm(p => ({...p, tee1: e.target.value}))} placeholder="예: 14:00" /> },
+            { label: "2일차 티오프", node: <input style={inp} type="text" value={resForm.tee2||""} onChange={e => setResForm(p => ({...p, tee2: e.target.value}))} placeholder="예: 07:00" /> },
+            { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: Number(e.target.value)||0}))} placeholder={String(resForm.teams*4)+"명 (자동)"} /> },
+            { label: "조식 인원 (비워두면 그린피 동일)", node: <input style={inp} type="number" value={resForm.bfPpl||""} onChange={e => setResForm(p => ({...p, bfPpl: Number(e.target.value)||0}))} placeholder="비워두면 자동" /> },
+            { label: "1일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur1||""} onChange={e => setResForm(p => ({...p, teeSur1: parseInt(e.target.value)||0}))} placeholder="0" /> },
+            { label: "2일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur2||""} onChange={e => setResForm(p => ({...p, teeSur2: parseInt(e.target.value)||0}))} placeholder="0" /> },
+            { label: "메모", node: <input style={inp} value={resForm.memo||""} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} placeholder="특이사항" /> },
+          ].map(({ label, node }) => (
+            <div key={label}><label style={{ fontSize: "12px", fontWeight: "700", color: "#555", display: "block", marginBottom: "4px" }}>{label}</label>{node}</div>
+          ))}
+        </div>
+        <button onClick={() => {
+          if (!resForm.depDate || !resForm.repName) return alert("출발일과 대표자명은 필수입니다.");
+          sbFetch("PATCH", "reservations?id=eq." + selRes.id, {
+            dep_date: resForm.depDate, rep_name: resForm.repName, phone: resForm.phone,
+            product_id: resForm.productId||"alpensia", nights: resForm.nights, combo: resForm.combo,
+            teams: resForm.teams, rm_type: resForm.rmType, tee1: resForm.tee1||"" , tee2: resForm.tee2||"",
+            tee_sur1: resForm.teeSur1||0, tee_sur2: resForm.teeSur2||0,
+            gf_ppl: Number(resForm.gfPpl)||0, bf_ppl: Number(resForm.bfPpl)||0, memo: resForm.memo||""
+          }).then(() => {
+            const updated = { ...selRes, ...resForm, depDate: resForm.depDate, repName: resForm.repName,
+              phone: resForm.phone, productId: resForm.productId||"alpensia", nights: resForm.nights,
+              combo: resForm.combo, teams: resForm.teams, rmType: resForm.rmType,
+              tee1: resForm.tee1||"", tee2: resForm.tee2||"",
+              teeSur1: resForm.teeSur1||0, teeSur2: resForm.teeSur2||0,
+              gfPpl: Number(resForm.gfPpl)||0, bfPpl: Number(resForm.bfPpl)||0, memo: resForm.memo||"" };
+            setReservations(p => p.map(r => r.id === selRes.id ? updated : r));
+            setSelRes(updated);
+            setAgtTab("invoice"); setEditMode(false);
+          }).catch(e => alert("수정 오류: " + e.message));
+        }} style={{ width: "100%", marginTop: "16px", padding: "14px", background: G.primary, color: "#fff", border: "none", borderRadius: "10px", fontSize: "15px", fontWeight: "800", cursor: "pointer" }}>
+          수정 저장
+        </button>
+      </div>
+    );
 
     // 예약 입력 폼
     if (agtTab === "form") return (
@@ -691,15 +774,15 @@ export default function DomesticGolf() {
           <div style={sc}>
             {/* 헤더 */}
             {/* 헤더 */}
-            <div style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 80px 1fr 44px", gap: "6px", padding: "8px 12px", background: G.lighter, borderRadius: "8px", fontSize: "11px", fontWeight: "700", color: G.textSub, marginBottom: "4px", border: "1px solid " + G.border }}>
-              <span>출발일</span><span>박수</span><span>대표자</span><span>연락처</span><span>골프장</span><span>구성</span><span style={{textAlign:"right"}}>팀수</span>
+            <div style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 70px 80px 1fr 44px", gap: "6px", padding: "8px 12px", background: G.lighter, borderRadius: "8px", fontSize: "11px", fontWeight: "700", color: G.textSub, marginBottom: "4px", border: "1px solid " + G.border }}>
+              <span>출발일</span><span>박수</span><span>대표자</span><span>연락처</span><span>티오프</span><span>골프장</span><span>구성</span><span style={{textAlign:"right"}}>팀수</span>
             </div>
             {[...reservations].sort((a, b) => (a.depDate || "") > (b.depDate || "") ? 1 : -1).map((r) => {
               const inv = calcForRes(r);
               const productName = PRODUCT_LIST.find(p => p.id === (r.productId||"alpensia"))?.name || "-";
               return (
-                <div key={r.id} onClick={() => { setSelRes(r); setAgtTab("invoice"); }}
-                  style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 80px 1fr 44px", gap: "6px", padding: "12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, fontSize: "13px", alignItems: "center", transition: "background 0.15s" }}
+                <div key={r.id} onClick={() => { setSelRes(r); setAgtTab("invoice"); setEditMode(false); setShowEditPw(false); setEditPw(""); setShowDeleteConfirm(false); }}
+                  style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 70px 80px 1fr 44px", gap: "6px", padding: "12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, fontSize: "13px", alignItems: "center", transition: "background 0.15s" }}
                   onMouseEnter={e => e.currentTarget.style.background=G.lighter}
                   onMouseLeave={e => e.currentTarget.style.background=""}
                 >
@@ -707,10 +790,10 @@ export default function DomesticGolf() {
                   <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.nights}</span>
                   <span style={{ fontWeight: "700", color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.repName}</span>
                   <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.phone}</span>
+                  <span style={{ fontSize: "11px", color: "#e67e22", fontWeight: "700", whiteSpace: "nowrap" }}>{r.tee1 || "-"}</span>
                   <span style={{ fontSize: "11px", color: G.accent, fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{productName}</span>
                   <span style={{ fontSize: "12px", color: G.text, whiteSpace: "nowrap" }}>{COMBO_LABEL[r.combo]}</span>
                   <span style={{ textAlign: "right", fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.teams}팀</span>
-
                 </div>
               );
             })}
