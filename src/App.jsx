@@ -158,6 +158,34 @@ const COMBOS = [
   { key: "prv_pub", d1: "prv", d2: "pub" },
   { key: "pub_prv", d1: "pub", d2: "prv" },
 ];
+// combo 키 → 라운드별 코스 배열 (pipe 형식 "prv|pub|prv|prv" 도 지원)
+const getCoursesFromCombo = (combo, numRounds) => {
+  if (!combo) return Array(numRounds).fill("prv");
+  if (combo.includes("|")) return combo.split("|").slice(0, numRounds);
+  return (COMBO_COURSES[combo] || Array(numRounds).fill("prv")).slice(0, numRounds);
+};
+
+const COMBO_COURSES = {
+  prv2:["prv","prv"], pub2:["pub","pub"], prv_pub:["prv","pub"], pub_prv:["pub","prv"],
+  prv_pub_prv:["prv","pub","prv"], pub_prv_pub:["pub","prv","pub"],
+  prv3:["prv","prv","prv"], pub3:["pub","pub","pub"],
+  prv2_pub:["prv","prv","pub"], pub2_prv:["pub","pub","prv"],
+  prv_pub2:["prv","pub","pub"], pub_prv2:["pub","prv","prv"],
+  prv4:["prv","prv","prv","prv"], pub4:["pub","pub","pub","pub"],
+  prv3_pub:["prv","prv","prv","pub"], pub3_prv:["pub","pub","pub","prv"],
+  prv_pub_prv_prv:["prv","pub","prv","prv"],
+  prv_prv_pub_prv:["prv","prv","pub","prv"],
+  prv_prv_prv_pub:["prv","prv","prv","pub"],
+  pub_prv_prv_prv:["pub","prv","prv","prv"],
+  prv_pub_pub_prv:["prv","pub","pub","prv"],
+  prv_pub_prv_pub:["prv","pub","prv","pub"],
+  pub_prv_pub_prv:["pub","prv","pub","prv"],
+  pub_pub_prv_prv:["pub","pub","prv","prv"],
+  prv_prv_pub_pub:["prv","prv","pub","pub"],
+  pub_prv_prv_pub:["pub","prv","prv","pub"],
+  prv2_pub2:["prv","prv","pub","pub"],
+  pub2_prv2:["pub","pub","prv","prv"],
+};
 
 // 패키지 라운드별 코스 조합 생성
 const buildRounds = (pkgKey, courseKeys) => {
@@ -211,7 +239,7 @@ export default function DomesticGolf() {
   const [editPw, setEditPw] = useState("");
   const [editPwErr, setEditPwErr] = useState(false);
   const [showEditPw, setShowEditPw] = useState(false);
-  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, bfIncluded: true, rmType: "HIS33", tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, teeType1: 1, teeType2: 0, teeType3: 0, teeType4: 0, memo: "" });
+  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, bfIncluded: true, rmType: "HIS33", tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, teeType1: 1, teeType2: 0, teeType3: 0, teeType4: 0, roundCourse1: "prv", roundCourse2: "prv", roundCourse3: "prv", roundCourse4: "prv", memo: "" });
   const [teams, setTeams] = useState(1);
   const [rmType, setRmType] = useState("HIS33");
   const [customSell, setCustomSell] = useState("");
@@ -351,6 +379,10 @@ export default function DomesticGolf() {
           teams: r.teams,
           rmType: r.rm_type,
           tee1: r.tee1 || "", tee2: r.tee2 || "", tee3: r.tee3 || "", tee4: r.tee4 || "",
+          roundCourse1: (r.combo||"").includes("|") ? r.combo.split("|")[0] : "prv",
+          roundCourse2: (r.combo||"").includes("|") ? r.combo.split("|")[1] : "prv",
+          roundCourse3: (r.combo||"").includes("|") ? r.combo.split("|")[2] : "prv",
+          roundCourse4: (r.combo||"").includes("|") ? r.combo.split("|")[3] : "prv",
           teeSur1: r.tee_sur1 || 0, teeSur2: r.tee_sur2 || 0, teeSur3: r.tee_sur3 || 0, teeSur4: r.tee_sur4 || 0,
           teeType1: r.tee_type1 ?? 1, teeType2: r.tee_type2 ?? 0, teeType3: r.tee_type3 ?? 0, teeType4: r.tee_type4 ?? 0,
           bfIncluded: r.bf_included !== false,
@@ -381,13 +413,13 @@ export default function DomesticGolf() {
 
     // 라운드별 그린피 계산
     const teeNums = [r.teeSur1||0, r.teeSur2||0, r.teeSur3||0, r.teeSur4||0];
-    // 코스: 1일차=curC2.d1(2부), 이후=curC2.d2(1부) - COMBO_LABEL 기반
-    const curC2 = COMBOS.find(c => c.key === r.combo) || COMBOS[0];
+    // 라운드별 코스: pipe 형식 or COMBO_COURSES 테이블
+    const courseArr = getCoursesFromCombo(r.combo, numRounds);
     const gfList = Array.from({ length: numRounds }, (_, i) => {
       const ds = addDays(date, i);
       const ss = season(ds);
       const dt = dayType(ds);
-      const courseKey = i === 0 ? curC2.d1 : curC2.d2;
+      const courseKey = courseArr[i] ?? "prv";
       const course = prod.courses[courseKey];
       const teeTypeArr = [r.teeType1??1, r.teeType2??0, r.teeType3??0, r.teeType4??0];
       const teeIdx = teeTypeArr[i] ?? 0; // 1=2부, 0=1부
@@ -422,7 +454,32 @@ export default function DomesticGolf() {
              cn1, cn2, teeSur1: r.teeSur1||0, teeSur2: r.teeSur2||0, numRounds, numNights };
   };
 
-  const COMBO_LABEL = { prv2: "회원제+회원제", pub2: "대중제+대중제", prv_pub: "회원제+대중제", pub_prv: "대중제+회원제", prv_pub_prv: "회원제+대중제+회원제", pub_prv_pub: "대중제+회원제+대중제", prv3: "회원제x3", pub3: "대중제x3", prv2_pub: "회원제x2+대중제", pub2_prv: "대중제x2+회원제", prv_pub2: "회원제+대중제x2", pub_prv2: "대중제+회원제x2", prv4: "회원제x4", pub4: "대중제x4", prv3_pub: "회원제x3+대중제", pub3_prv: "대중제x3+회원제" };
+  const COMBO_LABEL = {
+    // 1박2일 (2라운드)
+    prv2: "회원제+회원제", pub2: "대중제+대중제",
+    prv_pub: "회원제+대중제", pub_prv: "대중제+회원제",
+    // 2박3일 (3라운드)
+    prv3: "회원제x3", pub3: "대중제x3",
+    prv2_pub: "회원제+회원제+대중제", pub2_prv: "대중제+대중제+회원제",
+    prv_pub2: "회원제+대중제+대중제", pub_prv2: "대중제+회원제+회원제",
+    prv_pub_prv: "회원제+대중제+회원제", pub_prv_pub: "대중제+회원제+대중제",
+    // 3박4일 (4라운드)
+    prv4: "회원제x4", pub4: "대중제x4",
+    prv3_pub: "회원제+회원제+회원제+대중제",
+    pub3_prv: "대중제+대중제+대중제+회원제",
+    prv_pub_prv_prv: "회원제+대중제+회원제+회원제",
+    prv_prv_pub_prv: "회원제+회원제+대중제+회원제",
+    prv_prv_prv_pub: "회원제+회원제+회원제+대중제",
+    pub_prv_prv_prv: "대중제+회원제+회원제+회원제",
+    prv_pub_pub_prv: "회원제+대중제+대중제+회원제",
+    prv_pub_prv_pub: "회원제+대중제+회원제+대중제",
+    pub_prv_pub_prv: "대중제+회원제+대중제+회원제",
+    pub_pub_prv_prv: "대중제+대중제+회원제+회원제",
+    prv_prv_pub_pub: "회원제+회원제+대중제+대중제",
+    pub_prv_prv_pub: "대중제+회원제+회원제+대중제",
+    prv2_pub2: "회원제+회원제+대중제+대중제",
+    pub2_prv2: "대중제+대중제+회원제+회원제",
+  };
 
   const doAgtDownload = async () => {
     if (!agtInvoiceRef.current) return;
@@ -677,19 +734,28 @@ export default function DomesticGolf() {
             { label: "대표자명", node: <input style={inp} value={resForm.repName} onChange={e => setResForm(p => ({...p, repName: e.target.value}))} /> },
             { label: "연락처", node: <input style={inp} value={resForm.phone} onChange={e => setResForm(p => ({...p, phone: e.target.value}))} /> },
             { label: "박수", node: <select style={inp} value={resForm.nights} onChange={e => setResForm(p => ({...p, nights: e.target.value}))}>{["1박2일","2박3일","3박4일"].map(v => <option key={v}>{v}</option>)}</select> },
-            { label: "상품 구성", node: <select style={inp} value={resForm.combo} onChange={e => setResForm(p => ({...p, combo: e.target.value}))}>{Object.entries(COMBO_LABEL).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
             { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
             { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
-            ...(["tee1","tee2","tee3","tee4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((tk, i) => ({
-              label: (i+1)+"일차 티오프",
-              node: <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                <input style={{ ...inp, flex: 1 }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"예: 14:00":"예: 07:00"} />
-                <select style={{ ...inp, width: "80px", padding: "10px 6px" }} value={resForm["teeType"+(i+1)] ?? (i===0?1:0)} onChange={e => setResForm(p => ({...p, ["teeType"+(i+1)]: parseInt(e.target.value)}))}>
-                  <option value={0}>1부</option>
-                  <option value={1}>2부</option>
-                </select>
-              </div>
-            }))),
+            ...(["tee1","tee2","tee3","tee4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((tk, i) => {
+              const rcKey = "roundCourse"+(i+1);
+              const rc = resForm[rcKey] || "prv";
+              const updateCombo = (newRc) => {
+                const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
+                return { [rcKey]: newRc, combo: arr.join("|") };
+              };
+              return {
+                label: (i+1)+"일차 티오프",
+                node: <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  <input style={{ ...inp, flex: 1 }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"예: 14:00":"예: 07:00"} />
+                  <select style={{ ...inp, width: "70px", padding: "10px 4px" }} value={resForm["teeType"+(i+1)] ?? (i===0?1:0)} onChange={e => setResForm(p => ({...p, ["teeType"+(i+1)]: parseInt(e.target.value)}))}>
+                    <option value={0}>1부</option>
+                    <option value={1}>2부</option>
+                  </select>
+                  <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("prv")}))} style={{ padding: "8px 10px", borderRadius: "8px", border: "2px solid "+(rc==="prv"?"#2980b9":"#ddd"), background: rc==="prv"?"#ebf5fb":"#fff", color: rc==="prv"?"#2980b9":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>회원</button>
+                  <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("pub")}))} style={{ padding: "8px 10px", borderRadius: "8px", border: "2px solid "+(rc==="pub"?"#27ae60":"#ddd"), background: rc==="pub"?"#eafaf1":"#fff", color: rc==="pub"?"#27ae60":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>대중</button>
+                </div>
+              };
+            })),
             { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: Number(e.target.value)||0}))} placeholder={String(resForm.teams*4)+"명 (자동)"} /> },
             { label: "조식", node: <label style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 0", cursor: "pointer" }}>
                 <input type="checkbox" checked={resForm.bfIncluded !== false} onChange={e => setResForm(p => ({...p, bfIncluded: e.target.checked}))} style={{ width: "18px", height: "18px", accentColor: G.primary, cursor: "pointer" }} />
@@ -749,19 +815,28 @@ export default function DomesticGolf() {
             { label: "대표자명", node: <input style={inp} placeholder="홍길동님" value={resForm.repName} onChange={e => setResForm(p => ({...p, repName: e.target.value}))} /> },
             { label: "연락처", node: <input style={inp} placeholder="010-0000-0000" value={resForm.phone} onChange={e => setResForm(p => ({...p, phone: e.target.value}))} /> },
             { label: "박수", node: <select style={inp} value={resForm.nights} onChange={e => setResForm(p => ({...p, nights: e.target.value}))}>{["1박2일","2박3일","3박4일"].map(v => <option key={v}>{v}</option>)}</select> },
-            { label: "상품 구성", node: <select style={inp} value={resForm.combo} onChange={e => setResForm(p => ({...p, combo: e.target.value}))}>{Object.entries(COMBO_LABEL).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
             { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
             { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
-            ...(["tee1","tee2","tee3","tee4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((tk, i) => ({
-              label: (i+1)+"일차 티오프",
-              node: <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                <input style={{ ...inp, flex: 1 }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"예: 14:00":"예: 07:00"} />
-                <select style={{ ...inp, width: "80px", padding: "10px 6px" }} value={resForm["teeType"+(i+1)] ?? (i===0?1:0)} onChange={e => setResForm(p => ({...p, ["teeType"+(i+1)]: parseInt(e.target.value)}))}>
-                  <option value={0}>1부</option>
-                  <option value={1}>2부</option>
-                </select>
-              </div>
-            }))),
+            ...(["tee1","tee2","tee3","tee4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((tk, i) => {
+              const rcKey = "roundCourse"+(i+1);
+              const rc = resForm[rcKey] || "prv";
+              const updateCombo = (newRc) => {
+                const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
+                return { [rcKey]: newRc, combo: arr.join("|") };
+              };
+              return {
+                label: (i+1)+"일차 티오프",
+                node: <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  <input style={{ ...inp, flex: 1 }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"예: 14:00":"예: 07:00"} />
+                  <select style={{ ...inp, width: "70px", padding: "10px 4px" }} value={resForm["teeType"+(i+1)] ?? (i===0?1:0)} onChange={e => setResForm(p => ({...p, ["teeType"+(i+1)]: parseInt(e.target.value)}))}>
+                    <option value={0}>1부</option>
+                    <option value={1}>2부</option>
+                  </select>
+                  <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("prv")}))} style={{ padding: "8px 10px", borderRadius: "8px", border: "2px solid "+(rc==="prv"?"#2980b9":"#ddd"), background: rc==="prv"?"#ebf5fb":"#fff", color: rc==="prv"?"#2980b9":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>회원</button>
+                  <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("pub")}))} style={{ padding: "8px 10px", borderRadius: "8px", border: "2px solid "+(rc==="pub"?"#27ae60":"#ddd"), background: rc==="pub"?"#eafaf1":"#fff", color: rc==="pub"?"#27ae60":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>대중</button>
+                </div>
+              };
+            })),
             { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: Number(e.target.value)||0}))} placeholder={String(resForm.teams*4) + "명 (자동)"} /> },
             { label: "조식", node: <label style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 0", cursor: "pointer" }}>
                 <input type="checkbox" checked={resForm.bfIncluded !== false} onChange={e => setResForm(p => ({...p, bfIncluded: e.target.checked}))} style={{ width: "18px", height: "18px", accentColor: G.primary, cursor: "pointer" }} />
