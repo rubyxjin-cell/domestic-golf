@@ -790,8 +790,12 @@ export default function DomesticGolf() {
               rm_type: resForm.rmType,
               tee1: resForm.tee1 || "",
               tee2: resForm.tee2 || "",
+              tee3: resForm.tee3 || "",
+              tee4: resForm.tee4 || "",
               tee_sur1: resForm.teeSur1 || 0,
               tee_sur2: resForm.teeSur2 || 0,
+              tee_sur3: resForm.teeSur3 || 0,
+              tee_sur4: resForm.teeSur4 || 0,
               tee_type1: resForm.teeType1 ?? 1,
               tee_type2: resForm.teeType2 ?? 0,
               tee_type3: resForm.teeType3 ?? 0,
@@ -799,13 +803,19 @@ export default function DomesticGolf() {
               gf_ppl: Number(resForm.gfPpl) || 0,
               bf_ppl: Number(resForm.bfPpl) || 0,
               bf_included: resForm.bfIncluded !== false,
+              memo: resForm.memo || "",
             }).then(data => {
               const r = data[0];
               setReservations(p => [...p, {
                 id: r.id, agtId: r.agt_id, depDate: r.dep_date, repName: r.rep_name,
                 phone: r.phone, productId: r.product_id, nights: r.nights,
                 combo: r.combo, teams: r.teams, rmType: r.rm_type,
-                tee1: r.tee1, tee2: r.tee2, memo: r.memo, createdAt: r.created_at,
+                tee1: r.tee1, tee2: r.tee2, tee3: r.tee3, tee4: r.tee4,
+                teeSur1: r.tee_sur1||0, teeSur2: r.tee_sur2||0, teeSur3: r.tee_sur3||0, teeSur4: r.tee_sur4||0,
+                teeType1: r.tee_type1??1, teeType2: r.tee_type2??0, teeType3: r.tee_type3??0, teeType4: r.tee_type4??0,
+                bfIncluded: r.bf_included !== false,
+                gfPpl: Number(r.gf_ppl)||0, bfPpl: Number(r.bf_ppl)||0,
+                memo: r.memo, createdAt: r.created_at,
               }]);
               setResForm({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, memo: "" });
               setAgtTab("list");
