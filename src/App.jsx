@@ -158,6 +158,16 @@ const COMBOS = [
   { key: "prv_pub", d1: "prv", d2: "pub" },
   { key: "pub_prv", d1: "pub", d2: "prv" },
 ];
+// combo 표시 이름 변환 (pipe 형식 포함)
+const comboLabel = (combo) => {
+  if (!combo) return "";
+  if (COMBO_LABEL[combo]) return COMBO_LABEL[combo];
+  if (combo.includes("|")) {
+    return combo.split("|").map(c => c === "prv" ? "회원제" : "대중제").join("+");
+  }
+  return combo;
+};
+
 // combo 키 → 라운드별 코스 배열 (pipe 형식 "prv|pub|prv|prv" 도 지원)
 const getCoursesFromCombo = (combo, numRounds) => {
   if (!combo) return Array(numRounds).fill("prv");
@@ -524,7 +534,8 @@ export default function DomesticGolf() {
     if (agtTab === "invoice" && selRes) {
       const r = selRes;
       const inv = calcForRes(r);
-      const d2date = r.depDate ? nextDay(r.depDate) : "";
+      const numNightsForDate = ({"1박2일":1,"2박3일":2,"3박4일":3})[r.nights] || 1;
+      const d2date = r.depDate ? addDays(r.depDate, numNightsForDate) : "";
       return (
         <div style={sc}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
@@ -605,11 +616,11 @@ export default function DomesticGolf() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "13px" }}>
                 {[
                   ["출발일", r.depDate ? fmtD(r.depDate) : "-"],
-                  ["귀국일", d2date ? fmtD(d2date) : "-"],
+                  ["종료일", d2date ? fmtD(d2date) : "-"],
                   ["골프장", PRODUCT_LIST.find(p => p.id === (r.productId || "alpensia"))?.name || "-"],
                   ["대표자", r.repName || "-"],
                   ["연락처", r.phone || "-"],
-                  ["상품", COMBO_LABEL[r.combo] || r.combo],
+                  ["상품", comboLabel(r.combo)],
                   ["박수", r.nights],
                   ["팀수", r.teams + "팀 (" + (inv?.ppl || 0) + "인)"],
                   ["객실", rmLabel(r.rmType) + " " + (inv?.rmCnt || 0) + "실"],
@@ -947,7 +958,7 @@ export default function DomesticGolf() {
                   <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.phone}</span>
                   <span style={{ fontSize: "11px", color: "#e67e22", fontWeight: "700", whiteSpace: "nowrap" }}>{r.tee1 || "-"}</span>
                   <span style={{ fontSize: "11px", color: G.accent, fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{productName}</span>
-                  <span style={{ fontSize: "12px", color: G.text, whiteSpace: "nowrap" }}>{COMBO_LABEL[r.combo]}</span>
+                  <span style={{ fontSize: "12px", color: G.text, whiteSpace: "nowrap" }}>{comboLabel(r.combo)}</span>
                   <span style={{ textAlign: "right", fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.teams}팀</span>
                 </div>
               );
