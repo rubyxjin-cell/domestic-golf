@@ -684,12 +684,20 @@ export default function DomesticGolf() {
             { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
             ...(["tee1","tee2","tee3","tee4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((tk, i) => ({
               label: (i+1)+"일차 티오프",
-              node: <input style={inp} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"예: 14:00":"예: 07:00"} />
+              node: <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                <input style={{ ...inp, flex: 1 }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"예: 14:00":"예: 07:00"} />
+                <select style={{ ...inp, width: "80px", padding: "10px 6px" }} value={resForm["teeType"+(i+1)] ?? (i===0?1:0)} onChange={e => setResForm(p => ({...p, ["teeType"+(i+1)]: parseInt(e.target.value)}))}>
+                  <option value={0}>1부</option>
+                  <option value={1}>2부</option>
+                </select>
+              </div>
             }))),
             { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: Number(e.target.value)||0}))} placeholder={String(resForm.teams*4)+"명 (자동)"} /> },
             { label: "조식 인원 (비워두면 그린피 동일)", node: <input style={inp} type="number" value={resForm.bfPpl||""} onChange={e => setResForm(p => ({...p, bfPpl: Number(e.target.value)||0}))} placeholder="비워두면 자동" /> },
-            { label: "1일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur1||""} onChange={e => setResForm(p => ({...p, teeSur1: parseInt(e.target.value)||0}))} placeholder="0" /> },
-            { label: "2일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur2||""} onChange={e => setResForm(p => ({...p, teeSur2: parseInt(e.target.value)||0}))} placeholder="0" /> },
+            ...(["teeSur1","teeSur2","teeSur3","teeSur4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((sk, i) => ({
+              label: (i+1)+"일차 추가금",
+              node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
+            }))),
             { label: "메모", node: <input style={inp} value={resForm.memo||""} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} placeholder="특이사항" /> },
           ].map(({ label, node }) => (
             <div key={label}><label style={{ fontSize: "12px", fontWeight: "700", color: "#555", display: "block", marginBottom: "4px" }}>{label}</label>{node}</div>
