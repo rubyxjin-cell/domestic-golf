@@ -269,7 +269,7 @@ export default function DomesticGolf() {
   };
 
   const season = ds => (!ds || ds < (prod?.seasonCut || "")) ? "s1" : ds < (prod?.seasonCut2 || "2026-05-01") ? "s2" : "s3";
-  const dv = date && d2 && d2 <= "2026-05-31";
+  const dv = date && date <= "2026-05-31";
 
   // 객실 요금 조회 (연휴/연휴전일 처리 포함)
   const getRmRate = (rmD2, ds) => {
@@ -304,12 +304,16 @@ export default function DomesticGolf() {
           if (fp?.courses?.pub) {
             const fixed = Object.fromEntries(Object.entries(p.products).map(([k, v]) => [k, {
               ...v,
-              breakfast: (typeof v.breakfast === "object" && v.breakfast !== null) ? v.breakfast : DEF[k]?.breakfast ?? v.breakfast,
+              courses: DEF[k]?.courses ?? v.courses,
+              rooms: DEF[k]?.rooms ?? v.rooms,
+              breakfast: DEF[k]?.breakfast ?? v.breakfast,
+              seasonCut: DEF[k]?.seasonCut ?? v.seasonCut,
+              seasonCut2: DEF[k]?.seasonCut2 ?? v.seasonCut2,
+              seasons: DEF[k]?.seasons ?? v.seasons,
+              surcharge: DEF[k]?.surcharge ?? v.surcharge,
               sub: (DEF[k]?.sub !== undefined) ? DEF[k].sub : (v.sub || ""),
               courseIntro: DEF[k]?.courseIntro ?? v.courseIntro,
               roomIntro: DEF[k]?.roomIntro ?? v.roomIntro,
-              // 사진은 항상 DEF(코드에 박힌 값) 우선
-              // 사진: DEF에 값 있으면 DEF 우선, 없으면 localStorage 유지
               coursePhoto: Object.fromEntries(Object.entries(DEF[k]?.coursePhoto || {}).map(([ck, arr]) => [ck, arr.some(x=>x) ? arr : (v.coursePhoto?.[ck] || arr)])),
               roomPhoto: Object.fromEntries(Object.entries(DEF[k]?.roomPhoto || {}).map(([rk, arr]) => [rk, arr.some(x=>x) ? arr : (v.roomPhoto?.[rk] || arr)])),
             }]));
