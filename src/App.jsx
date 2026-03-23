@@ -529,7 +529,7 @@ export default function DomesticGolf() {
                       ["⛳ 2일차 " + inv.cn2 + " 1부" + (r.tee2 ? " T/O " + r.tee2 : ""), inv.gf2],
                       ...(inv.teeSur2 > 0 && showTeeSur ? [["  └ 시간 추가금 (13시 이전)", inv.teeSur2]] : []),
                       ["🏨 객실 ÷ " + inv.ppl + "인", inv.rmPP],
-                      ["🥐 조식", inv.bfPP],
+                      ["🥐 조식 × " + inv.bfPpl + "인", inv.bfPP],
                     ].map(([label, amt]) => (
                       <tr key={label} style={{ borderBottom: "1px solid #f0f0f0" }}>
                         <td style={{ padding: "6px 4px", color: label.startsWith("  └") ? "#e65100" : "#555", fontSize: label.startsWith("  └") ? "12px" : "13px" }}>{label}</td>
