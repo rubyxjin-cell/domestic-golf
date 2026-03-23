@@ -346,19 +346,12 @@ export default function DomesticGolf() {
           combo: r.combo,
           teams: r.teams,
           rmType: r.rm_type,
-          tee1: r.tee1,
-          tee2: r.tee2,
-          teeSur1: r.tee_sur1 || 0,
-          teeSur2: r.tee_sur2 || 0,
-          teeType1: r.tee_type1 ?? 1,
-          teeType2: r.tee_type2 ?? 0,
-          teeType3: r.tee_type3 ?? 0,
-          teeType4: r.tee_type4 ?? 0,
+          tee1: r.tee1 || "", tee2: r.tee2 || "", tee3: r.tee3 || "", tee4: r.tee4 || "",
+          teeSur1: r.tee_sur1 || 0, teeSur2: r.tee_sur2 || 0, teeSur3: r.tee_sur3 || 0, teeSur4: r.tee_sur4 || 0,
+          teeType1: r.tee_type1 ?? 1, teeType2: r.tee_type2 ?? 0, teeType3: r.tee_type3 ?? 0, teeType4: r.tee_type4 ?? 0,
           bfIncluded: r.bf_included !== false,
-          gfPpl: Number(r.gf_ppl) || 0,
-          bfPpl: Number(r.bf_ppl) || 0,
-          memo: r.memo,
-          createdAt: r.created_at,
+          gfPpl: Number(r.gf_ppl) || 0, bfPpl: Number(r.bf_ppl) || 0,
+          memo: r.memo, createdAt: r.created_at,
         })));
       })
       .catch(() => setReservations([]))
@@ -694,7 +687,11 @@ export default function DomesticGolf() {
               </div>
             }))),
             { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: Number(e.target.value)||0}))} placeholder={String(resForm.teams*4)+"명 (자동)"} /> },
-            { label: "조식 인원 (비워두면 그린피 동일)", node: <input style={inp} type="number" value={resForm.bfPpl||""} onChange={e => setResForm(p => ({...p, bfPpl: Number(e.target.value)||0}))} placeholder="비워두면 자동" /> },
+            { label: "조식", node: <label style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 0", cursor: "pointer" }}>
+                <input type="checkbox" checked={resForm.bfIncluded !== false} onChange={e => setResForm(p => ({...p, bfIncluded: e.target.checked}))} style={{ width: "18px", height: "18px", accentColor: G.primary, cursor: "pointer" }} />
+                <span style={{ fontSize: "14px", color: G.text, fontWeight: "600" }}>조식 포함 {resForm.bfIncluded !== false ? "(해장국+커피)" : "(미포함)"}</span>
+              </label>
+            },
             ...(["teeSur1","teeSur2","teeSur3","teeSur4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((sk, i) => ({
               label: (i+1)+"일차 추가금",
               node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
@@ -709,16 +706,20 @@ export default function DomesticGolf() {
           sbFetch("PATCH", "reservations?id=eq." + selRes.id, {
             dep_date: resForm.depDate, rep_name: resForm.repName, phone: resForm.phone,
             product_id: resForm.productId||"alpensia", nights: resForm.nights, combo: resForm.combo,
-            teams: resForm.teams, rm_type: resForm.rmType, tee1: resForm.tee1||"" , tee2: resForm.tee2||"",
-            tee_sur1: resForm.teeSur1||0, tee_sur2: resForm.teeSur2||0,
+            teams: resForm.teams, rm_type: resForm.rmType,
+            tee1: resForm.tee1||"", tee2: resForm.tee2||"", tee3: resForm.tee3||"", tee4: resForm.tee4||"",
+            tee_sur1: resForm.teeSur1||0, tee_sur2: resForm.teeSur2||0, tee_sur3: resForm.teeSur3||0, tee_sur4: resForm.teeSur4||0,
             tee_type1: resForm.teeType1??1, tee_type2: resForm.teeType2??0, tee_type3: resForm.teeType3??0, tee_type4: resForm.teeType4??0,
             gf_ppl: Number(resForm.gfPpl)||0, bf_ppl: Number(resForm.bfPpl)||0, bf_included: resForm.bfIncluded !== false, memo: resForm.memo||""
           }).then(() => {
-            const updated = { ...selRes, ...resForm, depDate: resForm.depDate, repName: resForm.repName,
-              phone: resForm.phone, productId: resForm.productId||"alpensia", nights: resForm.nights,
-              combo: resForm.combo, teams: resForm.teams, rmType: resForm.rmType,
-              tee1: resForm.tee1||"", tee2: resForm.tee2||"",
-              teeSur1: resForm.teeSur1||0, teeSur2: resForm.teeSur2||0,
+            const updated = { ...selRes, ...resForm,
+              depDate: resForm.depDate, repName: resForm.repName, phone: resForm.phone,
+              productId: resForm.productId||"alpensia", nights: resForm.nights, combo: resForm.combo,
+              teams: resForm.teams, rmType: resForm.rmType,
+              tee1: resForm.tee1||"", tee2: resForm.tee2||"", tee3: resForm.tee3||"", tee4: resForm.tee4||"",
+              teeSur1: resForm.teeSur1||0, teeSur2: resForm.teeSur2||0, teeSur3: resForm.teeSur3||0, teeSur4: resForm.teeSur4||0,
+              teeType1: resForm.teeType1??1, teeType2: resForm.teeType2??0, teeType3: resForm.teeType3??0, teeType4: resForm.teeType4??0,
+              bfIncluded: resForm.bfIncluded !== false,
               gfPpl: Number(resForm.gfPpl)||0, bfPpl: Number(resForm.bfPpl)||0, memo: resForm.memo||"" };
             setReservations(p => p.map(r => r.id === selRes.id ? updated : r));
             setSelRes(updated);
