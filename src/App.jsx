@@ -758,8 +758,10 @@ export default function DomesticGolf() {
             }))),
             { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: Number(e.target.value)||0}))} placeholder={String(resForm.teams*4) + "명 (자동)"} /> },
             { label: "조식 인원 (비워두면 그린피 동일)", node: <input style={inp} type="number" value={resForm.bfPpl||""} onChange={e => setResForm(p => ({...p, bfPpl: Number(e.target.value)||0}))} placeholder="비워두면 자동" /> },
-            { label: "1일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur1||""} onChange={e => setResForm(p => ({...p, teeSur1: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" /> },
-            { label: "2일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur2||""} onChange={e => setResForm(p => ({...p, teeSur2: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" /> },
+            ...(["teeSur1","teeSur2","teeSur3","teeSur4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((sk, i) => ({
+              label: (i+1)+"일차 추가금",
+              node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
+            }))),
             { label: "메모", node: <input style={inp} placeholder="특이사항" value={resForm.memo} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} /> },
           ].map(({ label, node }) => (
             <div key={label}>
