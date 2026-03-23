@@ -617,8 +617,8 @@ export default function DomesticGolf() {
             { label: "상품 구성", node: <select style={inp} value={resForm.combo} onChange={e => setResForm(p => ({...p, combo: e.target.value}))}>{Object.entries(COMBO_LABEL).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
             { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
             { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
-            { label: "1일차 티오프", node: <input style={inp} type="text" value={resForm.tee1} onChange={e => setResForm(p => ({...p, tee1: e.target.value}))} placeholder="예: 14:00" maxLength={5} /> },
-            { label: "2일차 티오프", node: <input style={inp} type="text" value={resForm.tee2} onChange={e => setResForm(p => ({...p, tee2: e.target.value}))} placeholder="예: 07:00" maxLength={20} /> },
+            { label: "1일차 티오프", node: <input style={inp} type="text" value={resForm.tee1} onChange={e => setResForm(p => ({...p, tee1: e.target.value}))} placeholder="예: 14:00" /> },
+            { label: "2일차 티오프", node: <input style={inp} type="text" value={resForm.tee2} onChange={e => setResForm(p => ({...p, tee2: e.target.value}))} placeholder="예: 07:00" /> },
             { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: parseInt(e.target.value)||0}))} placeholder={String(resForm.teams*4) + "명 (자동)"} /> },
             { label: "조식 인원 (비워두면 그린피 동일)", node: <input style={inp} type="number" value={resForm.bfPpl||""} onChange={e => setResForm(p => ({...p, bfPpl: parseInt(e.target.value)||0}))} placeholder="비워두면 자동" /> },
             { label: "1일차 추가금", node: <input style={inp} type="number" value={resForm.teeSur1||""} onChange={e => setResForm(p => ({...p, teeSur1: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" /> },
@@ -1129,7 +1129,7 @@ export default function DomesticGolf() {
                 {Array.from({ length: pkgRounds }, (_, i) => (
                   <div key={i}>
                     <label style={{ ...lbl, fontSize: "11px" }}>{i+1}일차</label>
-                    <input type="text" style={inp} value={qTees[i] || ""} onChange={e => { const a = [...qTees]; a[i] = e.target.value; setQTees(a); }} placeholder="10:55" maxLength={5} />
+                    <input type="text" style={inp} value={qTees[i] || ""} onChange={e => { const a = [...qTees]; a[i] = e.target.value; setQTees(a); }} placeholder="10:55" />
                   </div>
                 ))}
               </div>
