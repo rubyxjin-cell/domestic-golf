@@ -457,7 +457,7 @@ export default function DomesticGolf() {
     }
 
     const ss1 = season(date);
-    const bfPP2 = (r.bfIncluded === false) ? 0 : ((prod.breakfast?.[ss1] ?? prod.breakfast) || 0);
+    const bfPP2 = (r.bfIncluded === false) ? 0 : ((prod.breakfast?.[ss1] ?? prod.breakfast) || 0) * numNights;
     const gfTotal = gfList.reduce((s, g) => s + g.gf, 0);
     const costPP2 = gfTotal + rmPP2 + bfPP2;
 
@@ -666,7 +666,7 @@ export default function DomesticGolf() {
                     })}
                     {[
                       ["🏨 객실 ÷ " + inv.ppl + "인", inv.rmPP],
-                      ["🥐 조식 × " + inv.bfPpl + "인", inv.bfPP],
+                      ["🥐 조식(" + inv.numNights + "박) × " + inv.bfPpl + "인", inv.bfPP],
                     ].map(([label, amt]) => (
                       <tr key={label} style={{ borderBottom: "1px solid #f0f0f0" }}>
                         <td style={{ padding: "6px 4px", color: "#555", fontSize: "13px" }}>{label}</td>
@@ -1007,7 +1007,7 @@ export default function DomesticGolf() {
       rmPP += Math.ceil(rate * rmCnt / ppl);
     }
     const ss1 = season(date);
-    const bfPP = (prod.breakfast?.[ss1] ?? prod.breakfast) || 0;
+    const bfPP = ((prod.breakfast?.[ss1] ?? prod.breakfast) || 0) * pkg.nights;
     const rawGfTotal = rounds.reduce((s, r) => s + r.rawGf, 0); // 순수 원가 그린피 합계
     const gfTotal = rounds.reduce((s, r) => s + r.gf, 0);       // 수수료 포함 그린피 합계
     const rawCostPP = rawGfTotal + rmPP + bfPP;  // 순수 알펜시아 원가
