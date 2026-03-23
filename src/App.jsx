@@ -1640,13 +1640,13 @@ export default function DomesticGolf() {
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #f0f7f3 0%, #f7f9f8 100%)", fontFamily: "'Pretendard','Apple SD Gothic Neo',sans-serif" }}>
-      <div style={{ background: G.primary, padding: isMob ? "0 10px" : "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 2px 16px rgba(0,0,0,0.18)" }}>
-        <div style={{ display: "flex", gap: "2px" }}>
-          {[["calc", "알펜시아 요금"], ["quote", "고객 견적서"], ["agt", "AGT 예약관리"], ["setting", "⚙️ 설정"]].map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k)} style={{ padding: isMob ? "14px 12px" : "16px 20px", borderRadius: "0", border: "none", borderBottom: tab === k ? "3px solid #fff" : "3px solid transparent", cursor: "pointer", background: "transparent", color: tab === k ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: tab === k ? "800" : "600", fontSize: isMob ? "12px" : "13px", whiteSpace: "nowrap", transition: "all 0.15s", letterSpacing: "0.3px" }}>{l}</button>
+      <div style={{ background: G.primary, padding: isMob ? "0 4px" : "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 2px 16px rgba(0,0,0,0.18)" }}>
+        <div style={{ display: "flex", gap: "0px", flex: 1 }}>
+          {[["calc", "알펜시아 요금", "요금"], ["quote", "고객 견적서", "견적서"], ["agt", "AGT 예약관리", "예약관리"], ["setting", "⚙️ 설정", "⚙️"]].map(([k, l, lm]) => (
+            <button key={k} onClick={() => setTab(k)} style={{ flex: isMob ? 1 : "none", padding: isMob ? "14px 4px" : "16px 20px", borderRadius: "0", border: "none", borderBottom: tab === k ? "3px solid #fff" : "3px solid transparent", cursor: "pointer", background: "transparent", color: tab === k ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: tab === k ? "800" : "600", fontSize: isMob ? "11px" : "13px", whiteSpace: "nowrap", transition: "all 0.15s", letterSpacing: "0px" }}>{isMob ? lm : l}</button>
           ))}
         </div>
-        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", fontWeight: "700", letterSpacing: "2px" }}>CHOICE GOLF</div>
+        {!isMob && <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", fontWeight: "700", letterSpacing: "2px" }}>CHOICE GOLF</div>}
       </div>
       <div style={{ padding: isMob ? "12px 10px" : "20px", maxWidth: "800px", margin: "0 auto" }}>
         {tab === "calc" && renderCalc()}
