@@ -514,6 +514,7 @@ export default function DomesticGolf() {
   };
 
   const renderAgt = () => {
+    try {
     const fmt2 = n => n?.toLocaleString() || "0";
     if (agtTab === "login" || !agtAuthed) return (
       <div style={sc}>
@@ -788,8 +789,8 @@ export default function DomesticGolf() {
               node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
             }))),
             { label: "메모", node: <input style={inp} value={resForm.memo||""} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} placeholder="특이사항" /> },
-          ].map(({ label, node }) => (
-            <div key={label}><label style={{ fontSize: "12px", fontWeight: "700", color: "#555", display: "block", marginBottom: "4px" }}>{label}</label>{node}</div>
+          ].map(({ label, node }, idx) => (
+            <div key={idx}><label style={{ fontSize: "12px", fontWeight: "700", color: "#555", display: "block", marginBottom: "4px" }}>{label}</label>{node}</div>
           ))}
         </div>
         <button onClick={() => {
@@ -869,8 +870,8 @@ export default function DomesticGolf() {
               node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
             }))),
             { label: "메모", node: <input style={inp} placeholder="특이사항" value={resForm.memo} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} /> },
-          ].map(({ label, node }) => (
-            <div key={label}>
+          ].map(({ label, node }, idx) => (
+            <div key={idx}>
               <label style={{ fontSize: "12px", fontWeight: "700", color: "#555", display: "block", marginBottom: "4px" }}>{label}</label>
               {node}
             </div>
@@ -977,6 +978,7 @@ export default function DomesticGolf() {
         )}
       </div>
     );
+    } catch(e) { console.error('renderAgt error:', e); return <div style={{padding:'20px', color:'#e74c3c', background:'#fff', borderRadius:'12px'}}>⚠️ 오류: {e.message}</div>; }
   };
 
   const calc = (() => {
