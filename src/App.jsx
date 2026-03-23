@@ -161,11 +161,21 @@ const COMBOS = [
 // combo 표시 이름 변환 (pipe 형식 포함)
 const comboLabel = (combo) => {
   if (!combo) return "";
-  if (COMBO_LABEL[combo]) return COMBO_LABEL[combo];
+  // pipe 형식: "prv|pub|prv|prv"
   if (combo.includes("|")) {
     return combo.split("|").map(c => c === "prv" ? "회원제" : "대중제").join("+");
   }
-  return combo;
+  // 구형 키 형식 직접 변환
+  const map = {
+    prv2:"회원제+회원제", pub2:"대중제+대중제", prv_pub:"회원제+대중제", pub_prv:"대중제+회원제",
+    prv_pub_prv:"회원제+대중제+회원제", pub_prv_pub:"대중제+회원제+대중제",
+    prv3:"회원제x3", pub3:"대중제x3",
+    prv2_pub:"회원제+회원제+대중제", pub2_prv:"대중제+대중제+회원제",
+    prv_pub2:"회원제+대중제+대중제", pub_prv2:"대중제+회원제+회원제",
+    prv4:"회원제x4", pub4:"대중제x4",
+    prv3_pub:"회원제+회원제+회원제+대중제", pub3_prv:"대중제+대중제+대중제+회원제",
+  };
+  return map[combo] || combo;
 };
 
 // combo 키 → 라운드별 코스 배열 (pipe 형식 "prv|pub|prv|prv" 도 지원)
