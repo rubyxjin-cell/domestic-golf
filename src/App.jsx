@@ -40,7 +40,7 @@ const rmLabel = k => RL[k] || k;
 const DN = ["일", "월", "화", "수", "목", "금", "토"];
 const fmt = n => (n || 0).toLocaleString();
 const dow = ds => ds ? new Date(ds + "T00:00:00").getDay() : -1;
-const dayType = ds => { const d = dow(ds); return d >= 1 && d <= 4 ? "weekday" : d === 5 ? "friday" : d === 6 ? "saturday" : "sunday"; };
+const dayType = ds => { if (SUNDAY_RATE_DATES.includes(ds)) return "sunday"; const d = dow(ds); return d >= 1 && d <= 4 ? "weekday" : d === 5 ? "friday" : d === 6 ? "saturday" : "sunday"; };
 const dayLabel = dt => ({ weekday: "평일", friday: "금요일", saturday: "토요일", sunday: "일요일" }[dt]);
 const roomSat = ds => dow(ds) === 6;
 const nextDay = ds => {
@@ -74,6 +74,8 @@ const G = {
 // 연휴, 연휴전일, 공휴일 그린피 특별요금 날짜
 const HOLIDAY_DATES    = ["2026-05-01","2026-05-02","2026-05-03","2026-05-23","2026-05-24"];
 const HOLIDAY_EVE      = ["2026-04-30","2026-05-22"];
+// 그린피 일요일 요금 적용 특별 날짜 (요일 무관)
+const SUNDAY_RATE_DATES = ["2026-05-01","2026-05-05","2026-05-25"];
 // 날짜 더하기 (timezone 문제 없는 로컬 계산)
 const addDays = (ds, n) => {
   const d = new Date(ds + "T12:00:00");
@@ -325,7 +327,7 @@ export default function DomesticGolf() {
     const d = dow(ds);
     const rmIdx = d === 6 ? 2 : d === 5 ? 1 : 0; // 토=2, 금=1, 주중=0
     if (isHoliday(ds) || isHolidayEve(ds)) {
-      // 연휴/연휴전일: holiday 요금 사용, 연휴전일은 금요일 요금(index 1)
+      // 연휴/연휴전일: 성수기 금요일 요금 = holiday[1]
       const hIdx = isHolidayEve(ds) ? 1 : rmIdx;
       return (rmD2.holiday?.[hIdx]) || (rmD2[season(ds)]?.[rmIdx]) || 0;
     }
