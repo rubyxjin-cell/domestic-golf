@@ -211,7 +211,7 @@ export default function DomesticGolf() {
   const [editPw, setEditPw] = useState("");
   const [editPwErr, setEditPwErr] = useState(false);
   const [showEditPw, setShowEditPw] = useState(false);
-  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, rmType: "HIS33", tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, teeType1: 1, teeType2: 0, teeType3: 0, teeType4: 0, memo: "" });
+  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, bfIncluded: true, rmType: "HIS33", tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, teeType1: 1, teeType2: 0, teeType3: 0, teeType4: 0, memo: "" });
   const [teams, setTeams] = useState(1);
   const [rmType, setRmType] = useState("HIS33");
   const [customSell, setCustomSell] = useState("");
@@ -354,6 +354,7 @@ export default function DomesticGolf() {
           teeType2: r.tee_type2 ?? 0,
           teeType3: r.tee_type3 ?? 0,
           teeType4: r.tee_type4 ?? 0,
+          bfIncluded: r.bf_included !== false,
           gfPpl: Number(r.gf_ppl) || 0,
           bfPpl: Number(r.bf_ppl) || 0,
           memo: r.memo,
@@ -407,7 +408,7 @@ export default function DomesticGolf() {
     }
 
     const ss1 = season(date);
-    const bfPP2 = (prod.breakfast?.[ss1] ?? prod.breakfast) || 0;
+    const bfPP2 = (r.bfIncluded === false) ? 0 : ((prod.breakfast?.[ss1] ?? prod.breakfast) || 0);
     const gfTotal = gfList.reduce((s, g) => s + g.gf, 0);
     const costPP2 = gfTotal + rmPP2 + bfPP2;
 
@@ -711,7 +712,7 @@ export default function DomesticGolf() {
             teams: resForm.teams, rm_type: resForm.rmType, tee1: resForm.tee1||"" , tee2: resForm.tee2||"",
             tee_sur1: resForm.teeSur1||0, tee_sur2: resForm.teeSur2||0,
             tee_type1: resForm.teeType1??1, tee_type2: resForm.teeType2??0, tee_type3: resForm.teeType3??0, tee_type4: resForm.teeType4??0,
-            gf_ppl: Number(resForm.gfPpl)||0, bf_ppl: Number(resForm.bfPpl)||0, memo: resForm.memo||""
+            gf_ppl: Number(resForm.gfPpl)||0, bf_ppl: Number(resForm.bfPpl)||0, bf_included: resForm.bfIncluded !== false, memo: resForm.memo||""
           }).then(() => {
             const updated = { ...selRes, ...resForm, depDate: resForm.depDate, repName: resForm.repName,
               phone: resForm.phone, productId: resForm.productId||"alpensia", nights: resForm.nights,
@@ -757,7 +758,11 @@ export default function DomesticGolf() {
               </div>
             }))),
             { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: Number(e.target.value)||0}))} placeholder={String(resForm.teams*4) + "명 (자동)"} /> },
-            { label: "조식 인원 (비워두면 그린피 동일)", node: <input style={inp} type="number" value={resForm.bfPpl||""} onChange={e => setResForm(p => ({...p, bfPpl: Number(e.target.value)||0}))} placeholder="비워두면 자동" /> },
+            { label: "조식", node: <label style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 0", cursor: "pointer" }}>
+                <input type="checkbox" checked={resForm.bfIncluded !== false} onChange={e => setResForm(p => ({...p, bfIncluded: e.target.checked}))} style={{ width: "18px", height: "18px", accentColor: G.primary, cursor: "pointer" }} />
+                <span style={{ fontSize: "14px", color: G.text, fontWeight: "600" }}>조식 포함 {resForm.bfIncluded !== false ? "(해장국+커피)" : "(미포함)"}</span>
+              </label>
+            },
             ...(["teeSur1","teeSur2","teeSur3","teeSur4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((sk, i) => ({
               label: (i+1)+"일차 추가금",
               node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
@@ -793,7 +798,7 @@ export default function DomesticGolf() {
               tee_type4: resForm.teeType4 ?? 0,
               gf_ppl: Number(resForm.gfPpl) || 0,
               bf_ppl: Number(resForm.bfPpl) || 0,
-              memo: resForm.memo || "",
+              bf_included: resForm.bfIncluded !== false,
             }).then(data => {
               const r = data[0];
               setReservations(p => [...p, {
