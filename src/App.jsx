@@ -1371,7 +1371,7 @@ export default function DomesticGolf() {
                           <input type="number" min={1} value={g.ppl || ""} placeholder={String(effectivePpl)} onChange={e => { const ng=[...rmGroups]; ng[idx]={...ng[idx],ppl:parseInt(e.target.value)||0}; setRmGroups(ng); }} style={{ ...inp, width: "60px", textAlign: "center", padding: "6px 4px", fontSize: "13px", fontWeight: "700" }} />
                           <span style={{ fontSize: "11px", color: "#666" }}>명</span>
                         </div>
-                        <span style={{ fontSize: "11px", color: G.accent, fontWeight: "700" }}>→ 1인 {(g.cnt||defaultCnt)}실/{effectivePpl}명 기준</span>
+                        
                       </div>
                     )}
                   </div>
@@ -1492,13 +1492,6 @@ export default function DomesticGolf() {
 
 
 
-        {/* 안내사항 (결과 없을 때만) */}
-        {!calc && prod.notes?.length > 0 && (
-          <div style={{ ...sc, background: G.lighter, border: "1px solid " + G.border }}>
-            <div style={{ fontSize: "11px", fontWeight: "700", color: G.textSub, marginBottom: "8px", letterSpacing: "1px" }}>안내사항</div>
-            {prod.notes.map((n, i) => <div key={i} style={{ fontSize: "12px", color: G.textMid, padding: "3px 0", lineHeight: "1.6" }}>• {n}</div>)}
-          </div>
-        )}
       </div>
     );
   };
