@@ -809,7 +809,12 @@ export default function DomesticGolf() {
                 ].map(({tk,ck},ri) => (
                   <div key={ri} style={{ display:"flex", gap:"6px", alignItems:"center", marginBottom:"6px" }}>
                     <span style={{ fontSize:"11px", color:"#888", minWidth:"20px", fontWeight:"700" }}>{ri+1}</span>
-                    <select style={{ ...inp, flex:2, fontSize:"12px", padding:"8px 6px" }} value={resForm[tk]||"NONE"} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))}>
+                    <select style={{ ...inp, flex:2, fontSize:"12px", padding:"8px 6px" }} value={resForm[tk]||"NONE"} onChange={e => {
+                        const newType = e.target.value;
+                        const occ2 = prod?.rooms[newType]?.occ||4;
+                        const defCnt = newType !== "NONE" ? resForm.teams*(occ2===4?1:2) : 0;
+                        setResForm(p => ({...p, [tk]: newType, [ck]: defCnt}));
+                      }}>
                       <option value="NONE">{ri===0?"선택":"없음"}</option>
                       {[["HIS33","콘도 33평(4인1실)"],["HIR","홀리데이인 호텔(2인1실)"],["IC","인터컨티넨탈(2인1실)"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}
                     </select>
@@ -915,7 +920,12 @@ export default function DomesticGolf() {
                 ].map(({tk,ck},ri) => (
                   <div key={ri} style={{ display:"flex", gap:"6px", alignItems:"center", marginBottom:"6px" }}>
                     <span style={{ fontSize:"11px", color:"#888", minWidth:"20px", fontWeight:"700" }}>{ri+1}</span>
-                    <select style={{ ...inp, flex:2, fontSize:"12px", padding:"8px 6px" }} value={resForm[tk]||"NONE"} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))}>
+                    <select style={{ ...inp, flex:2, fontSize:"12px", padding:"8px 6px" }} value={resForm[tk]||"NONE"} onChange={e => {
+                        const newType = e.target.value;
+                        const occ2 = prod?.rooms[newType]?.occ||4;
+                        const defCnt = newType !== "NONE" ? resForm.teams*(occ2===4?1:2) : 0;
+                        setResForm(p => ({...p, [tk]: newType, [ck]: defCnt}));
+                      }}>
                       <option value="NONE">{ri===0?"선택":"없음"}</option>
                       {[["HIS33","콘도 33평(4인1실)"],["HIR","홀리데이인 호텔(2인1실)"],["IC","인터컨티넨탈(2인1실)"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}
                     </select>
