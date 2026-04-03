@@ -504,7 +504,6 @@ export default function DomesticGolf() {
              costPP: costPP2, sellPP: costPP2, totalAgt, ppl: ppl2, gfPpl: gfPpl2, bfPpl: bfPpl2,
              cn1, cn2, teeSur1: r.teeSur1||0, teeSur2: r.teeSur2||0, numRounds, numNights, noHotel: noHotel2 };
   };
-  };
 
   const COMBO_LABEL = {
     // 1박2일 (2라운드)
