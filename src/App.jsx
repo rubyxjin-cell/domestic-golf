@@ -866,7 +866,7 @@ export default function DomesticGolf() {
             const updated = { ...selRes, ...resForm,
               depDate: resForm.depDate, repName: resForm.repName, phone: resForm.phone,
               productId: resForm.productId||"alpensia", nights: resForm.nights, combo: resForm.combo,
-              teams: resForm.teams, rmType: resForm.rmType, rmType2: resForm.rmType2||"NONE", rmCnt2: resForm.rmCnt2||0,
+              teams: resForm.teams, rmType: resForm.rmType, rmCnt1: resForm.rmCnt1||1, rmType2: resForm.rmType2||"NONE", rmCnt2: resForm.rmCnt2||0, rmType3: resForm.rmType3||"NONE", rmCnt3: resForm.rmCnt3||0, rmType4: resForm.rmType4||"NONE", rmCnt4: resForm.rmCnt4||0,
               tee1: resForm.tee1||"", tee2: resForm.tee2||"", tee3: resForm.tee3||"", tee4: resForm.tee4||"",
               teeSur1: resForm.teeSur1||0, teeSur2: resForm.teeSur2||0, teeSur3: resForm.teeSur3||0, teeSur4: resForm.teeSur4||0,
               teeType1: resForm.teeType1??1, teeType2: resForm.teeType2??0, teeType3: resForm.teeType3??0, teeType4: resForm.teeType4??0,
@@ -1668,22 +1668,23 @@ export default function DomesticGolf() {
                   return <CardInfo key={i} title={r.cn} spec={parts[1]?.trim()} intro={parts[0]} photo={photo} />;
                 })}
                 {(() => {
-                  const rPhotos = prod.roomPhoto?.[rmType] || [];
+                  const firstRmType = rmGroups.find(g => g.type && g.type !== "NONE")?.type || "HIS33";
+                  const rPhotos = prod.roomPhoto?.[firstRmType] || [];
                   const rPhoto = rPhotos.filter(Boolean)[0] || null;
-                  const rIntro = prod.roomIntro?.[rmType] || "";
+                  const rIntro = prod.roomIntro?.[firstRmType] || "";
                   const colSpan = totalCards === 3 ? "1 / -1" : "auto";
                   return (
                     <div style={{ gridColumn: colSpan }}>
                       {totalCards === 3 ? (
                         <div style={{ background: "#fff", borderRadius: "10px", overflow: "hidden", display: "grid", gridTemplateColumns: "160px 1fr" }}>
-                          {rPhoto && <img src={rPhoto} alt={rmType} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
+                          {rPhoto && <img src={rPhoto} alt={firstRmType} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
                           <div style={{ padding: "10px 12px" }}>
-                            <div style={{ fontSize: "13px", fontWeight: "800", color: "#111", marginBottom: "4px" }}>{rmLabel(rmType)}</div>
+                            <div style={{ fontSize: "13px", fontWeight: "800", color: "#111", marginBottom: "4px" }}>{rmLabel(firstRmType)}</div>
                             {rIntro && <div style={{ fontSize: "11px", color: "#555", lineHeight: "1.7" }}>{rIntro}</div>}
                           </div>
                         </div>
                       ) : (
-                        <CardInfo title={rmLabel(rmType)} spec={null} intro={rIntro} photo={rPhoto} />
+                        <CardInfo title={rmLabel(firstRmType)} spec={null} intro={rIntro} photo={rPhoto} />
                       )}
                     </div>
                   );
