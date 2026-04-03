@@ -261,9 +261,9 @@ export default function DomesticGolf() {
   const [editPw, setEditPw] = useState("");
   const [editPwErr, setEditPwErr] = useState(false);
   const [showEditPw, setShowEditPw] = useState(false);
-  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, bfIncluded: true, rmType: "HIS33", tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, teeType1: 1, teeType2: 0, teeType3: 0, teeType4: 0, roundCourse1: "prv", roundCourse2: "prv", roundCourse3: "prv", roundCourse4: "prv", memo: "" });
+  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, bfIncluded: true, rmType: "HIS33", rmCnt1: 1, rmType2: "NONE", rmCnt2: 0, rmType3: "NONE", rmCnt3: 0, rmType4: "NONE", rmCnt4: 0, tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, teeType1: 1, teeType2: 0, teeType3: 0, teeType4: 0, roundCourse1: "prv", roundCourse2: "prv", roundCourse3: "prv", roundCourse4: "prv", memo: "" });
   const [teams, setTeams] = useState(1);
-  const [rmType, setRmType] = useState("HIS33");
+  const [rmGroups, setRmGroups] = useState([{ type: "HIS33", cnt: 1 }]); // 요금계산탭 객실 그룹
   const [customSell, setCustomSell] = useState("");
   const [qCustomPrice, setQCustomPrice] = useState(""); // 고객 요금 직접입력
   const [qDeposit, setQDeposit] = useState("100,000");   // 예약금
@@ -292,12 +292,11 @@ export default function DomesticGolf() {
   const ppl = teams * 4;
   const bfOn = true;
   const curC = COMBOS.find(c => c.key === combo) || COMBOS[0];
-  const rmD = (rmType === "NONE") ? null : prod?.rooms[rmType];
-  const rmOcc = rmD?.occ || 4;
-  const rmCnt = (rmType === "NONE") ? 0 : teams * (rmOcc === 4 ? 1 : 2);
   const pkgNights = PACKAGES[pkgKey]?.nights || 1;
   const pkgRounds = PACKAGES[pkgKey]?.rounds || 2;
-  const rmOL = rmOcc === 4 ? "4인1실" : "2인1실";
+  // 객실 그룹 헬퍼
+  const validRmGroups = (prod && rmGroups) ? rmGroups.filter(g => g.type && g.type !== "NONE" && g.cnt > 0 && prod.rooms[g.type]) : [];
+  const noHotel = validRmGroups.length === 0;
   // 패키지 변경 시 라운드 배열 재초기화
   const handlePkgChange = (newPkg) => {
     const pkg = PACKAGES[newPkg];
@@ -400,6 +399,13 @@ export default function DomesticGolf() {
           combo: r.combo,
           teams: r.teams,
           rmType: r.rm_type,
+          rmCnt1: Number(r.rm_cnt1) || 1,
+          rmType2: r.rm_type2 || "NONE",
+          rmCnt2: Number(r.rm_cnt2) || 0,
+          rmType3: r.rm_type3 || "NONE",
+          rmCnt3: Number(r.rm_cnt3) || 0,
+          rmType4: r.rm_type4 || "NONE",
+          rmCnt4: Number(r.rm_cnt4) || 0,
           tee1: r.tee1 || "", tee2: r.tee2 || "", tee3: r.tee3 || "", tee4: r.tee4 || "",
           roundCourse1: (r.combo||"").includes("|") ? r.combo.split("|")[0] : "prv",
           roundCourse2: (r.combo||"").includes("|") ? r.combo.split("|")[1] : "prv",
@@ -423,19 +429,14 @@ export default function DomesticGolf() {
     const date = r.depDate;
     if (!date) return null;
     const pkg = PACKAGES[r.nights] || PACKAGES["1박2일"];
-    const numRounds = pkg.rounds;  // 1박2일=2, 2박3일=3, 3박4일=4
+    const numRounds = pkg.rounds;
     const numNights = pkg.nights;
     const ppl2 = r.teams * 4;
     const gfPpl2 = (r.gfPpl && r.gfPpl > 0) ? r.gfPpl : ppl2;
     const bfPpl2 = (r.bfPpl && r.bfPpl > 0) ? r.bfPpl : gfPpl2;
-    const rmD2 = (r.rmType === "NONE") ? null : prod.rooms[r.rmType];
-    if (!rmD2 && r.rmType !== "NONE") return null;
-    const rmOcc2 = rmD2?.occ || 4;
-    const rmCnt2 = (r.rmType === "NONE") ? 0 : r.teams * (rmOcc2 === 4 ? 1 : 2);
 
     // 라운드별 그린피 계산
     const teeNums = [r.teeSur1||0, r.teeSur2||0, r.teeSur3||0, r.teeSur4||0];
-    // 라운드별 코스: pipe 형식 or COMBO_COURSES 테이블
     const courseArr = getCoursesFromCombo(r.combo, numRounds);
     const gfList = Array.from({ length: numRounds }, (_, i) => {
       const ds = addDays(date, i);
@@ -444,26 +445,17 @@ export default function DomesticGolf() {
       const courseKey = courseArr[i] ?? "prv";
       const course = prod.courses[courseKey];
       const teeTypeArr = [r.teeType1??1, r.teeType2??0, r.teeType3??0, r.teeType4??0];
-      const teeIdx = teeTypeArr[i] ?? 0; // 1=2부, 0=1부
-      const tee2Sur = (i > 0 && teeIdx === 1) ? 20000 : 0; // 2부+2부 추가금
+      const teeIdx = teeTypeArr[i] ?? 0;
+      const tee2Sur = (i > 0 && teeIdx === 1) ? 20000 : 0;
       const basGf = (course?.[ss]?.[dt]?.[teeIdx] || 0) + 2500 + tee2Sur;
       const sur = teeNums[i] || 0;
       return { gf: basGf + (showTeeSur ? sur : 0), sur, cn: prod.courseNames[courseKey], ds, teeIdx };
     });
+    const gfTotal = gfList.reduce((s, g) => s + g.gf, 0);
 
-    // 객실: 박수만큼 (호텔 없음이면 0)
-    let rmPP2 = 0;
-    if (r.rmType !== "NONE") {
-      for (let i = 0; i < numNights; i++) {
-        const ds = addDays(date, i);
-        const rate = getRmRate(rmD2, ds);
-        rmPP2 += Math.ceil(rate * rmCnt2 / ppl2);
-      }
-    }
-
+    // 조식
     const ss1 = season(date);
     const bfRate2 = (prod.breakfast?.[ss1] ?? prod.breakfast) || 0;
-    // 조식: 다음날 1부인 날만 포함 (2부 치는 날은 조식 제외)
     let bfNights2 = 0;
     if (r.bfIncluded !== false) {
       for (let i = 0; i < numNights; i++) {
@@ -471,20 +463,47 @@ export default function DomesticGolf() {
       }
     }
     const bfPP2 = bfRate2 * bfNights2;
-    const gfTotal = gfList.reduce((s, g) => s + g.gf, 0);
+
+    // 객실 그룹 계산 - 그룹별 1인 요금 계산
+    const rawGroups = [
+      { type: r.rmType,  cnt: Number(r.rmCnt1)||1 },
+      { type: r.rmType2, cnt: Number(r.rmCnt2)||0 },
+      { type: r.rmType3, cnt: Number(r.rmCnt3)||0 },
+      { type: r.rmType4, cnt: Number(r.rmCnt4)||0 },
+    ];
+    const rmGroupsData = rawGroups
+      .filter(g => g.type && g.type !== "NONE" && g.cnt > 0 && prod.rooms[g.type])
+      .map(g => {
+        const rmDg = prod.rooms[g.type];
+        const occ = rmDg.occ || 4;
+        const groupPpl = g.cnt * occ;
+        let rmPP = 0;
+        for (let i = 0; i < numNights; i++) {
+          const ds = addDays(date, i);
+          const rate = getRmRate(rmDg, ds);
+          rmPP += rate / occ;
+        }
+        rmPP = Math.ceil(rmPP);
+        return { type: g.type, cnt: g.cnt, occ, groupPpl, rmPP, label: rmLabel(g.type), totalPP: gfTotal + rmPP + bfPP2 };
+      });
+
+    const noHotel2 = rmGroupsData.length === 0;
+    // 대표 rmPP (첫 그룹 기준, 인보이스 합계용)
+    const rmPP2 = noHotel2 ? 0 : rmGroupsData[0].rmPP;
     const costPP2 = gfTotal + rmPP2 + bfPP2;
+    const totalAgt = rmGroupsData.length > 0
+      ? (gfTotal * gfPpl2) + (bfPP2 * bfPpl2) + rmGroupsData.reduce((s, g) => s + g.rmPP * g.groupPpl, 0)
+      : (gfTotal * gfPpl2) + (bfPP2 * bfPpl2);
 
-    const totalAgt = (gfTotal * gfPpl2) + (bfPP2 * bfPpl2) + (rmPP2 * ppl2);
-
-    // 하위호환용
     const gf1 = gfList[0]?.gf || 0;
     const gf2 = gfList[1]?.gf || 0;
     const cn1 = gfList[0]?.cn || "";
     const cn2 = gfList[1]?.cn || "";
 
-    return { gf1, gf2, gfList, rmPP: rmPP2, bfPP: bfPP2, bfNights: bfNights2, costPP: costPP2, sellPP: costPP2,
-             totalAgt, ppl: ppl2, gfPpl: gfPpl2, bfPpl: bfPpl2, rmCnt: rmCnt2,
-             cn1, cn2, teeSur1: r.teeSur1||0, teeSur2: r.teeSur2||0, numRounds, numNights };
+    return { gf1, gf2, gfList, gfTotal, rmPP: rmPP2, rmGroupsData, bfPP: bfPP2, bfNights: bfNights2,
+             costPP: costPP2, sellPP: costPP2, totalAgt, ppl: ppl2, gfPpl: gfPpl2, bfPpl: bfPpl2,
+             cn1, cn2, teeSur1: r.teeSur1||0, teeSur2: r.teeSur2||0, numRounds, numNights, noHotel: noHotel2 };
+  };
   };
 
   const COMBO_LABEL = {
@@ -647,7 +666,7 @@ export default function DomesticGolf() {
                   ["상품", comboLabel(r.combo)],
                   ["박수", r.nights],
                   ["팀수", r.teams + "팀 (" + (inv?.ppl || 0) + "인)"],
-                  ["객실", r.rmType === "NONE" ? rmLabel("NONE") : rmLabel(r.rmType) + " " + (inv?.rmCnt || 0) + "실"],
+                  ["객실", (() => { const gs = [{t:r.rmType,c:r.rmCnt1||1},{t:r.rmType2,c:r.rmCnt2},{t:r.rmType3,c:r.rmCnt3},{t:r.rmType4,c:r.rmCnt4}].filter(g=>g.t&&g.t!=="NONE"&&g.c>0); return gs.length===0?"호텔 없음":gs.map(g=>rmLabel(g.t)+" "+g.c+"실").join(" + "); })()],
                 ].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", gap: "6px" }}>
                     <span style={{ color: "#888", fontWeight: "600", minWidth: "48px" }}>{k}</span>
@@ -677,12 +696,20 @@ export default function DomesticGolf() {
                         </tr>
                       );
                     })}
-                    {inv.rmPP > 0 && (
-                      <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
-                        <td style={{ padding: "6px 4px", color: "#555", fontSize: "13px" }}>🏨 객실 ÷ {inv.ppl}인</td>
-                        <td style={{ padding: "6px 4px", textAlign: "right" }}>₩{fmt2(inv.rmPP)}</td>
-                      </tr>
-                    )}
+                    {(inv.rmGroupsData||[]).length > 0
+                      ? (inv.rmGroupsData||[]).map((g,gi) => (
+                          <tr key={gi} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                            <td style={{ padding: "6px 4px", color: "#555", fontSize: "13px" }}>🏨 {g.label} {g.cnt}실 ({g.groupPpl}명) 객실비/인</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>₩{fmt2(g.rmPP)}</td>
+                          </tr>
+                        ))
+                      : inv.rmPP > 0 && (
+                          <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
+                            <td style={{ padding: "6px 4px", color: "#555", fontSize: "13px" }}>🏨 객실 ÷ {inv.ppl}인</td>
+                            <td style={{ padding: "6px 4px", textAlign: "right" }}>₩{fmt2(inv.rmPP)}</td>
+                          </tr>
+                        )
+                    }
                     {inv.bfPP > 0 && (
                       <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
                         <td style={{ padding: "6px 4px", color: "#555", fontSize: "13px" }}>🥐 조식({inv.bfNights ?? inv.numNights}박) × {inv.bfPpl}인</td>
@@ -773,7 +800,23 @@ export default function DomesticGolf() {
             { label: "연락처", node: <input style={inp} value={resForm.phone} onChange={e => setResForm(p => ({...p, phone: e.target.value}))} /> },
             { label: "박수", node: <select style={inp} value={resForm.nights} onChange={e => setResForm(p => ({...p, nights: e.target.value}))}>{["1박2일","2박3일","3박4일"].map(v => <option key={v}>{v}</option>)}</select> },
             { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
-            { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"],["NONE","호텔 없음 (골프만)"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
+            { label: "객실 구성", node: (<div>
+                {[
+                  {tk:"rmType",ck:"rmCnt1"},{tk:"rmType2",ck:"rmCnt2"},
+                  {tk:"rmType3",ck:"rmCnt3"},{tk:"rmType4",ck:"rmCnt4"},
+                ].map(({tk,ck},ri) => (
+                  <div key={ri} style={{ display:"flex", gap:"6px", alignItems:"center", marginBottom:"6px" }}>
+                    <span style={{ fontSize:"11px", color:"#888", minWidth:"20px", fontWeight:"700" }}>{ri+1}</span>
+                    <select style={{ ...inp, flex:2, fontSize:"12px", padding:"8px 6px" }} value={resForm[tk]||"NONE"} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))}>
+                      <option value="NONE">{ri===0?"선택":"없음"}</option>
+                      {[["HIS33","콘도 33평(4인1실)"],["HIR","홀리데이인 호텔(2인1실)"],["IC","인터컨티넨탈(2인1실)"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                    {(resForm[tk] && resForm[tk] !== "NONE") && (
+                      <><input type="number" min={1} style={{ ...inp, width:"52px", textAlign:"center", padding:"8px 4px" }} value={resForm[ck]||1} onChange={e => setResForm(p => ({...p, [ck]: parseInt(e.target.value)||1}))} /><span style={{ fontSize:"11px", color:"#888" }}>실</span></>
+                    )}
+                  </div>
+                ))}
+              </div>) },
             ...(["tee1","tee2","tee3","tee4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((tk, i) => {
               const rcKey = "roundCourse"+(i+1);
               const rc = resForm[rcKey] || "prv";
@@ -814,7 +857,7 @@ export default function DomesticGolf() {
           sbFetch("PATCH", "reservations?id=eq." + selRes.id, {
             dep_date: resForm.depDate, rep_name: resForm.repName, phone: resForm.phone,
             product_id: resForm.productId||"alpensia", nights: resForm.nights, combo: resForm.combo,
-            teams: resForm.teams, rm_type: resForm.rmType,
+            teams: resForm.teams, rm_type: resForm.rmType, rm_cnt1: resForm.rmCnt1||1, rm_type2: resForm.rmType2||"NONE", rm_cnt2: resForm.rmCnt2||0, rm_type3: resForm.rmType3||"NONE", rm_cnt3: resForm.rmCnt3||0, rm_type4: resForm.rmType4||"NONE", rm_cnt4: resForm.rmCnt4||0,
             tee1: resForm.tee1||"", tee2: resForm.tee2||"", tee3: resForm.tee3||"", tee4: resForm.tee4||"",
             tee_sur1: resForm.teeSur1||0, tee_sur2: resForm.teeSur2||0, tee_sur3: resForm.teeSur3||0, tee_sur4: resForm.teeSur4||0,
             tee_type1: resForm.teeType1??1, tee_type2: resForm.teeType2??0, tee_type3: resForm.teeType3??0, tee_type4: resForm.teeType4??0,
@@ -823,7 +866,7 @@ export default function DomesticGolf() {
             const updated = { ...selRes, ...resForm,
               depDate: resForm.depDate, repName: resForm.repName, phone: resForm.phone,
               productId: resForm.productId||"alpensia", nights: resForm.nights, combo: resForm.combo,
-              teams: resForm.teams, rmType: resForm.rmType,
+              teams: resForm.teams, rmType: resForm.rmType, rmType2: resForm.rmType2||"NONE", rmCnt2: resForm.rmCnt2||0,
               tee1: resForm.tee1||"", tee2: resForm.tee2||"", tee3: resForm.tee3||"", tee4: resForm.tee4||"",
               teeSur1: resForm.teeSur1||0, teeSur2: resForm.teeSur2||0, teeSur3: resForm.teeSur3||0, teeSur4: resForm.teeSur4||0,
               teeType1: resForm.teeType1??1, teeType2: resForm.teeType2??0, teeType3: resForm.teeType3??0, teeType4: resForm.teeType4??0,
@@ -854,7 +897,23 @@ export default function DomesticGolf() {
             { label: "연락처", node: <input style={inp} placeholder="010-0000-0000" value={resForm.phone} onChange={e => setResForm(p => ({...p, phone: e.target.value}))} /> },
             { label: "박수", node: <select style={inp} value={resForm.nights} onChange={e => setResForm(p => ({...p, nights: e.target.value}))}>{["1박2일","2박3일","3박4일"].map(v => <option key={v}>{v}</option>)}</select> },
             { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
-            { label: "객실", node: <select style={inp} value={resForm.rmType} onChange={e => setResForm(p => ({...p, rmType: e.target.value}))}>{[["HIS33","홀리데이인 콘도 33평"],["HIR","홀리데이인 호텔"],["IC","인터컨티넨탈"],["NONE","호텔 없음 (골프만)"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select> },
+            { label: "객실 구성", node: (<div>
+                {[
+                  {tk:"rmType",ck:"rmCnt1"},{tk:"rmType2",ck:"rmCnt2"},
+                  {tk:"rmType3",ck:"rmCnt3"},{tk:"rmType4",ck:"rmCnt4"},
+                ].map(({tk,ck},ri) => (
+                  <div key={ri} style={{ display:"flex", gap:"6px", alignItems:"center", marginBottom:"6px" }}>
+                    <span style={{ fontSize:"11px", color:"#888", minWidth:"20px", fontWeight:"700" }}>{ri+1}</span>
+                    <select style={{ ...inp, flex:2, fontSize:"12px", padding:"8px 6px" }} value={resForm[tk]||"NONE"} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))}>
+                      <option value="NONE">{ri===0?"선택":"없음"}</option>
+                      {[["HIS33","콘도 33평(4인1실)"],["HIR","홀리데이인 호텔(2인1실)"],["IC","인터컨티넨탈(2인1실)"]].map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                    {(resForm[tk] && resForm[tk] !== "NONE") && (
+                      <><input type="number" min={1} style={{ ...inp, width:"52px", textAlign:"center", padding:"8px 4px" }} value={resForm[ck]||1} onChange={e => setResForm(p => ({...p, [ck]: parseInt(e.target.value)||1}))} /><span style={{ fontSize:"11px", color:"#888" }}>실</span></>
+                    )}
+                  </div>
+                ))}
+              </div>) },
             ...(["tee1","tee2","tee3","tee4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((tk, i) => {
               const rcKey = "roundCourse"+(i+1);
               const rc = resForm[rcKey] || "prv";
@@ -906,6 +965,13 @@ export default function DomesticGolf() {
               combo: resForm.combo,
               teams: resForm.teams,
               rm_type: resForm.rmType,
+              rm_cnt1: resForm.rmCnt1||1,
+              rm_type2: resForm.rmType2||"NONE",
+              rm_cnt2: resForm.rmCnt2||0,
+              rm_type3: resForm.rmType3||"NONE",
+              rm_cnt3: resForm.rmCnt3||0,
+              rm_type4: resForm.rmType4||"NONE",
+              rm_cnt4: resForm.rmCnt4||0,
               tee1: resForm.tee1 || "",
               tee2: resForm.tee2 || "",
               tee3: resForm.tee3 || "",
@@ -928,6 +994,9 @@ export default function DomesticGolf() {
                 id: r.id, agtId: r.agt_id, depDate: r.dep_date, repName: r.rep_name,
                 phone: r.phone, productId: r.product_id, nights: r.nights,
                 combo: r.combo, teams: r.teams, rmType: r.rm_type,
+                rmType2: r.rm_type2||"NONE", rmCnt2: Number(r.rm_cnt2)||0,
+                rmType3: r.rm_type3||"NONE", rmCnt3: Number(r.rm_cnt3)||0,
+                rmType4: r.rm_type4||"NONE", rmCnt4: Number(r.rm_cnt4)||0,
                 tee1: r.tee1, tee2: r.tee2, tee3: r.tee3, tee4: r.tee4,
                 teeSur1: r.tee_sur1||0, teeSur2: r.tee_sur2||0, teeSur3: r.tee_sur3||0, teeSur4: r.tee_sur4||0,
                 teeType1: r.tee_type1??1, teeType2: r.tee_type2??0, teeType3: r.tee_type3??0, teeType4: r.tee_type4??0,
@@ -935,7 +1004,7 @@ export default function DomesticGolf() {
                 gfPpl: Number(r.gf_ppl)||0, bfPpl: Number(r.bf_ppl)||0,
                 memo: r.memo, createdAt: r.created_at,
               }]);
-              setResForm({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, memo: "" });
+              setResForm({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", rmCnt1: 1, rmType2: "NONE", rmCnt2: 0, rmType3: "NONE", rmCnt3: 0, rmType4: "NONE", rmCnt4: 0, tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, memo: "" });
               setAgtTab("list");
             }).catch(e => alert("저장 오류: " + e.message));
           }}
@@ -999,10 +1068,8 @@ export default function DomesticGolf() {
 
   const calc = (() => {
     if (!date || !prod || !dv) return null;
-    if (rmType !== "NONE" && !rmD) return null;
     const pkg = PACKAGES[pkgKey];
     if (!pkg) return null;
-    // 라운드별 계산
     const rounds = Array.from({ length: pkg.rounds }, (_, i) => {
       const ds = addDays(date, i);
       const teeIdx = roundTees[i] ?? DEFAULT_TEE[i] ?? 0;
@@ -1012,40 +1079,44 @@ export default function DomesticGolf() {
       const dt = getGfDayType(ds);
       const isD1 = i === 0;
       const teeSur = getTeeSur(qTees[i] || "", isD1);
-      const tee2Sur = (!isD1 && teeIdx === 1) ? 20000 : 0; // 2부+2부 추가금
-      const rawGf = (course?.[ss]?.[dt]?.[teeIdx] || 0) + teeSur + tee2Sur; // 순수 알펜시아 그린피
-      const gf = rawGf + 2500; // AGT 청구 그린피 (초이스 수수료 포함)
+      const tee2Sur = (!isD1 && teeIdx === 1) ? 20000 : 0;
+      const rawGf = (course?.[ss]?.[dt]?.[teeIdx] || 0) + teeSur + tee2Sur;
+      const gf = rawGf + 2500;
       return { ds, teeIdx, courseKey, cn: prod.courseNames[courseKey], gf, rawGf, teeSur, ss };
     });
-    // 객실: 박수만큼, 각 날짜별 요금 (호텔 없음이면 0)
-    let rmPP = 0;
-    if (rmType !== "NONE") {
-      for (let i = 0; i < pkg.nights; i++) {
-        const ds = addDays(date, i);
-        const rate = getRmRate(rmD, ds);
-        rmPP += Math.ceil(rate * rmCnt / ppl);
-      }
-    }
+    const rawGfTotal = rounds.reduce((s, r) => s + r.rawGf, 0);
+    const gfTotal = rounds.reduce((s, r) => s + r.gf, 0);
     const ss1 = season(date);
     const bfRate = (prod.breakfast?.[ss1] ?? prod.breakfast) || 0;
-    // 조식: 다음날 라운드가 1부인 날만 포함 (2부 치는 날은 조식 제외)
     let bfNights = 0;
     for (let i = 0; i < pkg.nights; i++) {
       if ((rounds[i + 1]?.teeIdx ?? 0) === 0) bfNights++;
     }
     const bfPP = bfRate * bfNights;
-    const rawGfTotal = rounds.reduce((s, r) => s + r.rawGf, 0);
-    const gfTotal = rounds.reduce((s, r) => s + r.gf, 0);
+    // 객실 그룹별 1인 요금
+    const rmGroupsData = validRmGroups.map(g => {
+      const rmDg = prod.rooms[g.type];
+      const occ = rmDg.occ || 4;
+      const groupPpl = g.cnt * occ;
+      let rmPP = 0;
+      for (let i = 0; i < pkg.nights; i++) {
+        const ds = addDays(date, i);
+        const rate = getRmRate(rmDg, ds);
+        rmPP += rate / occ;
+      }
+      rmPP = Math.ceil(rmPP);
+      const sellPPg = gfTotal + rmPP + bfPP;
+      const offPPg = rawGfTotal + rmPP + bfPP + (10000 * pkg.rounds) + (validRmGroups.length === 0 ? 0 : 5000 * pkg.nights);
+      return { type: g.type, cnt: g.cnt, occ, groupPpl, rmPP, label: rmLabel(g.type), sellPP: sellPPg, offPP: offPPg };
+    });
+    const rmPP = noHotel ? 0 : (rmGroupsData[0]?.rmPP || 0);
     const rawCostPP = rawGfTotal + rmPP + bfPP;
     const costPP = gfTotal + rmPP + bfPP;
-    // 공식판매가 = 원가 + 골프 10,000원/라운드 + 객실 5,000원/박 (호텔 없으면 객실 마진 제외)
-    const offPP = rawCostPP + (10000 * pkg.rounds) + (rmType !== "NONE" ? 5000 * pkg.nights : 0);
-    // AGT 입금가 = 원가 + 골프 2,500원/라운드
+    const offPP = rawCostPP + (10000 * pkg.rounds) + (noHotel ? 0 : 5000 * pkg.nights);
     const sellPP = rawCostPP + (2500 * pkg.rounds);
-    // AGT 마진 = 골프 7,500원/라운드 + 객실 5,000원/박 (호텔 없으면 객실 마진 제외)
-    const agtMgn = (7500 * pkg.rounds) + (rmType !== "NONE" ? 5000 * pkg.nights : 0);
+    const agtMgn = (7500 * pkg.rounds) + (noHotel ? 0 : 5000 * pkg.nights);
     const choiceMgn = 2500 * pkg.rounds;
-    return { rounds, rawGfTotal, gfTotal, rmPP, bfPP, rawCostPP, costPP, offPP, sellPP, agtMgn, choiceMgn };
+    return { rounds, rawGfTotal, gfTotal, rmPP, rmGroupsData, bfPP, bfNights, rawCostPP, costPP, offPP, sellPP, agtMgn, choiceMgn };
   })();
   const finalSell = customSell ? parseInt(customSell, 10) : (calc?.sellPP || 0);
 
@@ -1118,7 +1189,7 @@ export default function DomesticGolf() {
 
   // incl/excl — renderCalc, renderQuote 공용
   const incl = prod ? ["골프 그린피 " + (pkgRounds * 18) + "홀 (18홀 x " + pkgRounds + "라운드)"] : [];
-  if (prod && rmType !== "NONE") incl.push("숙박 " + pkgNights + "박 — " + rmLabel(rmType) + " (" + rmCnt + "실 · " + rmOL + ")");
+  if (prod && validRmGroups.length > 0) validRmGroups.forEach(g => { const occ = prod.rooms[g.type]?.occ||4; incl.push("숙박 " + pkgNights + "박 — " + rmLabel(g.type) + " " + g.cnt + "실 (" + (g.cnt*occ) + "명)"); });
   if (prod && bfOn && (calc?.bfPP ?? 0) > 0) incl.push("클럽조식 (해장국+커피)");
   // 선택된 코스 종류 파악
   const hasPrv = roundCourses.includes("prv");
@@ -1245,75 +1316,88 @@ export default function DomesticGolf() {
               </div>
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "13px", fontWeight: "800", color: G.text, marginBottom: "12px" }}>🏨 숙소</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {Object.keys(prod.rooms).map(r => {
-                  const on = rmType === r; const occ = prod.rooms[r]?.occ || 4;
-                  return (
-                    <button key={r} onClick={() => setRmType(r)} style={{ padding: "10px 14px", borderRadius: "10px", cursor: "pointer", textAlign: "left", border: on ? "2px solid " + G.primary : "2px solid #e8e8e8", background: on ? G.light : "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "13px", fontWeight: "700", color: on ? G.primary : "#777" }}>{rmLabel(r)}</span>
-                      <span style={{ fontSize: "11px", fontWeight: "600", color: on ? G.accent : "#aaa" }}>{occ === 4 ? "4인1실" : "2인1실"}</span>
-                    </button>
-                  );
-                })}
-                <button onClick={() => setRmType("NONE")} style={{ padding: "10px 14px", borderRadius: "10px", cursor: "pointer", textAlign: "left", border: rmType === "NONE" ? "2px solid #c0392b" : "2px solid #e8e8e8", background: rmType === "NONE" ? "#fff5f5" : "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "13px", fontWeight: "700", color: rmType === "NONE" ? "#c0392b" : "#777" }}>🚫 호텔 없음 (골프만)</span>
-                  <span style={{ fontSize: "11px", fontWeight: "600", color: "#aaa" }}>숙박 미포함</span>
-                </button>
-              </div>
+              <div style={{ fontSize: "13px", fontWeight: "800", color: G.text, marginBottom: "10px" }}>🏨 숙소 구성</div>
+              {rmGroups.map((g, idx) => (
+                <div key={idx} style={{ display: "flex", gap: "6px", alignItems: "center", marginBottom: "8px", padding: "10px 12px", background: g.type !== "NONE" ? G.lighter : "#fff5f5", borderRadius: "10px", border: "1px solid " + (g.type !== "NONE" ? G.border : "#fcc") }}>
+                  <select value={g.type} onChange={e => { const ng = [...rmGroups]; ng[idx] = {...ng[idx], type: e.target.value}; setRmGroups(ng); }} style={{ ...inp, flex: 2, fontSize: "12px", padding: "8px 6px" }}>
+                    <option value="NONE">🚫 호텔 없음</option>
+                    {Object.keys(prod.rooms).map(r => <option key={r} value={r}>{rmLabel(r)} ({prod.rooms[r].occ===4?"4인1실":"2인1실"})</option>)}
+                  </select>
+                  {g.type !== "NONE" && (<>
+                    <input type="number" min={1} value={g.cnt} onChange={e => { const ng=[...rmGroups]; ng[idx]={...ng[idx],cnt:parseInt(e.target.value)||1}; setRmGroups(ng); }} style={{ ...inp, width: "52px", textAlign: "center", padding: "8px 4px", fontSize: "13px", fontWeight: "700" }} />
+                    <span style={{ fontSize: "11px", color: G.textMid, whiteSpace: "nowrap" }}>실 = {g.cnt*(prod.rooms[g.type]?.occ||4)}명</span>
+                  </>)}
+                  {rmGroups.length > 1 && <button onClick={() => setRmGroups(rmGroups.filter((_,i)=>i!==idx))} style={{ padding: "6px 10px", border: "none", background: "#eee", borderRadius: "6px", cursor: "pointer", fontSize: "12px", color: "#888" }}>✕</button>}
+                </div>
+              ))}
+              {rmGroups.length < 4 && (
+                <button onClick={() => setRmGroups([...rmGroups, {type: "HIS33", cnt: 1}])} style={{ width: "100%", padding: "8px", border: "2px dashed " + G.border, borderRadius: "10px", background: "transparent", color: G.primary, fontWeight: "700", fontSize: "12px", cursor: "pointer" }}>+ 객실 추가</button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* ══ 결과 (공식판매가 + AGT 입금가) ══ */}
+        {/* ══ 결과 - 객실 그룹별 요금 ══ */}
         {calc && (
           <div style={{ borderRadius: "16px", overflow: "hidden", marginBottom: "12px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
-            <div style={{ padding: "24px", background: "linear-gradient(135deg, #fdf6e3 0%, #fffef7 100%)", borderBottom: "1px solid #e8d5a3" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "8px" }}>
-                <div>
-                  <div style={{ fontSize: "12px", color: G.gold, fontWeight: "700", marginBottom: "6px" }}>공식판매가 (1인)</div>
-                  <div style={{ fontSize: "36px", fontWeight: "900", color: "#5a4510", letterSpacing: "-1px", lineHeight: 1 }}>₩{fmt(calc.offPP)}</div>
+            {/* 그룹별 요금 카드 */}
+            {calc.rmGroupsData.length > 0 ? calc.rmGroupsData.map((g, gi) => (
+              <div key={gi}>
+                <div style={{ padding: "16px 24px", background: "linear-gradient(135deg, #fdf6e3 0%, #fffef7 100%)", borderBottom: "1px solid #e8d5a3" }}>
+                  <div style={{ fontSize: "11px", color: G.textSub, fontWeight: "700", marginBottom: "4px" }}>🏨 {g.label} 이용자 ({g.groupPpl}명) — 공식판매가 (1인)</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontSize: "30px", fontWeight: "900", color: "#5a4510" }}>₩{fmt(g.offPP)}</div>
+                    <div style={{ fontSize: "12px", color: G.gold, fontWeight: "700" }}>커미션 {fmt(g.offPP - g.sellPP)}원/인</div>
+                  </div>
                 </div>
-                <div style={{ padding: "8px 18px", background: "rgba(184,134,11,0.12)", borderRadius: "24px", border: "1px solid #e8d5a3" }}>
-                  <span style={{ fontSize: "14px", fontWeight: "800", color: G.gold }}>커미션 {fmt((7500*pkgRounds)+(5000*pkgNights))}원/인</span>
+                <div style={{ padding: "12px 24px", background: G.primary, borderBottom: gi < calc.rmGroupsData.length-1 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", marginBottom: "2px" }}>AGT 입금가 (1인)</div>
+                      <div style={{ fontSize: "24px", fontWeight: "900", color: "#fff" }}>₩{fmt(g.sellPP)}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>{g.groupPpl}명 합계</div>
+                      <div style={{ fontSize: "18px", fontWeight: "800", color: "#fff" }}>₩{fmt(g.sellPP * g.groupPpl)}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div style={{ padding: "18px 24px", background: G.primary }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                <div>
-                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.55)", fontWeight: "600", marginBottom: "2px" }}>AGT 입금가 (1인)</div>
-                  <div style={{ fontSize: "28px", fontWeight: "900", color: "#fff" }}>₩{fmt(calc.sellPP)}</div>
+            )) : (
+              <div>
+                <div style={{ padding: "16px 24px", background: "linear-gradient(135deg, #fdf6e3 0%, #fffef7 100%)", borderBottom: "1px solid #e8d5a3" }}>
+                  <div style={{ fontSize: "12px", color: G.gold, fontWeight: "700", marginBottom: "4px" }}>공식판매가 (1인) — 호텔 미포함</div>
+                  <div style={{ fontSize: "30px", fontWeight: "900", color: "#5a4510" }}>₩{fmt(calc.offPP)}</div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.55)" }}>총액 ({ppl}명)</div>
-                  <div style={{ fontSize: "20px", fontWeight: "800", color: "#fff" }}>₩{fmt(calc.sellPP * ppl)}</div>
+                <div style={{ padding: "12px 24px", background: G.primary }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div><div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", marginBottom: "2px" }}>AGT 입금가 (1인)</div>
+                    <div style={{ fontSize: "24px", fontWeight: "900", color: "#fff" }}>₩{fmt(calc.sellPP)}</div></div>
+                    <div style={{ textAlign: "right" }}><div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>총액 ({ppl}명)</div>
+                    <div style={{ fontSize: "18px", fontWeight: "800", color: "#fff" }}>₩{fmt(calc.sellPP * ppl)}</div></div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div style={{ padding: "16px 24px", background: "#f9fbfa" }}>
+            )}
+            <div style={{ padding: "14px 24px", background: "#f9fbfa" }}>
               <div style={{ fontSize: "11px", fontWeight: "700", color: "#aaa", marginBottom: "8px" }}>포함사항</div>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "12px" }}>
-                <span style={{ padding: "6px 14px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>⛳ 골프 그린피 {pkgRounds * 18}홀</span>
-                {bfOn && (calc?.bfPP ?? 0) > 0 && <span style={{ padding: "6px 14px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>🥐 클럽조식(해장국+커피)</span>}
-                {rmType !== "NONE" && <span style={{ padding: "6px 14px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>🏨 {rmLabel(rmType)}</span>}
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
+                <span style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>⛳ 골프 그린피 {pkgRounds * 18}홀</span>
+                {bfOn && (calc?.bfPP ?? 0) > 0 && <span style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>🥐 클럽조식</span>}
+                {calc.rmGroupsData.map((g, i) => <span key={i} style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>🏨 {g.label} {g.cnt}실</span>)}
               </div>
               <div style={{ fontSize: "11px", fontWeight: "700", color: "#aaa", marginBottom: "8px" }}>불포함사항</div>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                <span style={{ padding: "6px 14px", borderRadius: "20px", background: "#fff", border: "1px solid #fdd", fontSize: "12px", fontWeight: "700", color: "#c0392b" }}>🚫 캐디피 ₩150,000</span>
-                {hasPrv && hasPub
-                  ? <span style={{ padding: "6px 14px", borderRadius: "20px", background: "#fff", border: "1px solid #fdd", fontSize: "12px", fontWeight: "700", color: "#c0392b" }}>🚫 카트비 ₩120,000(회원제) / ₩100,000(대중제)</span>
-                  : hasPrv
-                    ? <span style={{ padding: "6px 14px", borderRadius: "20px", background: "#fff", border: "1px solid #fdd", fontSize: "12px", fontWeight: "700", color: "#c0392b" }}>🚫 카트비 ₩120,000</span>
-                    : <span style={{ padding: "6px 14px", borderRadius: "20px", background: "#fff", border: "1px solid #fdd", fontSize: "12px", fontWeight: "700", color: "#c0392b" }}>🚫 카트비 ₩100,000</span>
-                }
+                <span style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #fdd", fontSize: "12px", fontWeight: "700", color: "#c0392b" }}>🚫 캐디피 ₩150,000</span>
+                {hasPrv && hasPub ? <span style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #fdd", fontSize: "12px", fontWeight: "700", color: "#c0392b" }}>🚫 카트비 ₩120,000(회원제)/₩100,000(대중제)</span>
+                  : hasPrv ? <span style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #fdd", fontSize: "12px", fontWeight: "700", color: "#c0392b" }}>🚫 카트비 ₩120,000</span>
+                  : <span style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #fdd", fontSize: "12px", fontWeight: "700", color: "#c0392b" }}>🚫 카트비 ₩100,000</span>}
               </div>
-              {calc.surD2 > 0 && <div style={{ marginTop: "6px", padding: "6px 12px", borderRadius: "8px", background: "#fff3e0", fontSize: "12px", fontWeight: "700", color: "#e65100" }}>⚠️ 2일차 추가금 +{fmt(calc.surD2)}원</div>}
             </div>
           </div>
         )}
 
-        {/* 세부 옵션 */}
+        {/* 세부 요금표 */}
         {calc && (
           <div style={sc}>
             <button onClick={() => setShowDetail(!showDetail)} style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "none", background: "#f0f0f0", cursor: "pointer", fontSize: "13px", fontWeight: "700", color: "#777" }}>
@@ -1321,19 +1405,27 @@ export default function DomesticGolf() {
             </button>
             {showDetail && (
               <div style={{ marginTop: "14px" }}>
-
-                <div style={{ fontSize: "12px", fontWeight: "700", color: G.primary, marginBottom: "6px" }}>원가 상세 (1인)</div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                  <tbody>
-                    {calc.rounds.map((r, i) => (
-                      <tr key={i}><td style={qTd}>⛳ {i+1}일차 {r.cn} {r.teeIdx===1?"2부":"1부"}</td><td style={qTdR}>₩{fmt(r.gf)}</td></tr>
-                    ))}
-                    <tr><td style={qTd}>🏨 {rmLabel(rmType)} {pkgNights}박 ({rmCnt}실·{rmOL})</td><td style={qTdR}>₩{fmt(calc.rmPP)}</td></tr>
-                    {calc.bfPP > 0 && <tr><td style={qTd}>🥐 조식</td><td style={qTdR}>₩{fmt(calc.bfPP)}</td></tr>}
-                    <tr style={{ background: G.light }}><td style={{ ...qTd, fontWeight: "800", color: G.primary }}>AGT 입금가</td><td style={{ ...qTdR, color: G.primary, fontSize: "15px" }}>₩{fmt(calc.sellPP)}</td></tr>
-                  </tbody>
-                </table>
-
+                {calc.rmGroupsData.length > 0 ? calc.rmGroupsData.map((g, gi) => (
+                  <div key={gi} style={{ marginBottom: "14px" }}>
+                    <div style={{ fontSize: "12px", fontWeight: "800", color: G.primary, marginBottom: "6px" }}>🏨 {g.label} 이용자 ({g.groupPpl}명)</div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                      <tbody>
+                        {calc.rounds.map((r, i) => (<tr key={i}><td style={qTd}>⛳ {i+1}일차 {r.cn} {r.teeIdx===1?"2부":"1부"}</td><td style={qTdR}>₩{fmt(r.gf)}</td></tr>))}
+                        <tr><td style={qTd}>🏨 {g.label} {pkgNights}박</td><td style={qTdR}>₩{fmt(g.rmPP)}</td></tr>
+                        {calc.bfPP > 0 && <tr><td style={qTd}>🥐 조식</td><td style={qTdR}>₩{fmt(calc.bfPP)}</td></tr>}
+                        <tr style={{ background: G.light }}><td style={{ ...qTd, fontWeight: "800", color: G.primary }}>AGT 입금가</td><td style={{ ...qTdR, color: G.primary, fontSize: "15px" }}>₩{fmt(g.sellPP)}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )) : (
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                    <tbody>
+                      {calc.rounds.map((r, i) => (<tr key={i}><td style={qTd}>⛳ {i+1}일차 {r.cn} {r.teeIdx===1?"2부":"1부"}</td><td style={qTdR}>₩{fmt(r.gf)}</td></tr>))}
+                      {calc.bfPP > 0 && <tr><td style={qTd}>🥐 조식</td><td style={qTdR}>₩{fmt(calc.bfPP)}</td></tr>}
+                      <tr style={{ background: G.light }}><td style={{ ...qTd, fontWeight: "800", color: G.primary }}>AGT 입금가</td><td style={{ ...qTdR, color: G.primary, fontSize: "15px" }}>₩{fmt(calc.sellPP)}</td></tr>
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
           </div>
