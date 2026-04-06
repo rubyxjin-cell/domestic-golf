@@ -801,7 +801,13 @@ export default function DomesticGolf() {
             { label: "대표자명", node: <input style={inp} value={resForm.repName} onChange={e => setResForm(p => ({...p, repName: e.target.value}))} /> },
             { label: "연락처", node: <input style={inp} value={resForm.phone} onChange={e => setResForm(p => ({...p, phone: e.target.value}))} /> },
             { label: "박수", node: <select style={inp} value={resForm.nights} onChange={e => setResForm(p => ({...p, nights: e.target.value}))}>{["1박2일","2박3일","3박4일"].map(v => <option key={v}>{v}</option>)}</select> },
-            { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
+            { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => {
+              const t = parseInt(e.target.value);
+              const calcCnt = (tk) => { const oc = prod?.rooms[resForm[tk]]?.occ||4; return resForm[tk]&&resForm[tk]!=="NONE" ? t*(oc===4?1:2) : 0; };
+              setResForm(p => ({...p, teams: t,
+                rmCnt1: calcCnt("rmType"), rmCnt2: calcCnt("rmType2"),
+                rmCnt3: calcCnt("rmType3"), rmCnt4: calcCnt("rmType4")}));
+            }}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
             { label: "객실 구성", node: (<div>
                 {[
                   {tk:"rmType",ck:"rmCnt1"},{tk:"rmType2",ck:"rmCnt2"},
@@ -873,7 +879,12 @@ export default function DomesticGolf() {
           sbFetch("PATCH", "reservations?id=eq." + selRes.id, {
             dep_date: resForm.depDate, rep_name: resForm.repName, phone: resForm.phone,
             product_id: resForm.productId||"alpensia", nights: resForm.nights, combo: resForm.combo,
-            teams: resForm.teams, rm_type: resForm.rmType, rm_cnt1: resForm.rmCnt1||1, rm_type2: resForm.rmType2||"NONE", rm_cnt2: resForm.rmCnt2||0, rm_type3: resForm.rmType3||"NONE", rm_cnt3: resForm.rmCnt3||0, rm_type4: resForm.rmType4||"NONE", rm_cnt4: resForm.rmCnt4||0, rm_ppl1: resForm.rmPpl1||0, rm_ppl2: resForm.rmPpl2||0, rm_ppl3: resForm.rmPpl3||0, rm_ppl4: resForm.rmPpl4||0,
+            teams: resForm.teams, rm_type: resForm.rmType,
+            rm_cnt1: resForm.rmCnt1 || (prod?.rooms[resForm.rmType]?.occ===4 ? resForm.teams*1 : resForm.teams*2),
+            rm_type2: resForm.rmType2||"NONE", rm_cnt2: resForm.rmCnt2 || (resForm.rmType2&&resForm.rmType2!=="NONE" ? (prod?.rooms[resForm.rmType2]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
+            rm_type3: resForm.rmType3||"NONE", rm_cnt3: resForm.rmCnt3 || (resForm.rmType3&&resForm.rmType3!=="NONE" ? (prod?.rooms[resForm.rmType3]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
+            rm_type4: resForm.rmType4||"NONE", rm_cnt4: resForm.rmCnt4 || (resForm.rmType4&&resForm.rmType4!=="NONE" ? (prod?.rooms[resForm.rmType4]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
+            rm_ppl1: resForm.rmPpl1||0, rm_ppl2: resForm.rmPpl2||0, rm_ppl3: resForm.rmPpl3||0, rm_ppl4: resForm.rmPpl4||0,
             tee1: resForm.tee1||"", tee2: resForm.tee2||"", tee3: resForm.tee3||"", tee4: resForm.tee4||"",
             tee_sur1: resForm.teeSur1||0, tee_sur2: resForm.teeSur2||0, tee_sur3: resForm.teeSur3||0, tee_sur4: resForm.teeSur4||0,
             tee_type1: resForm.teeType1??1, tee_type2: resForm.teeType2??0, tee_type3: resForm.teeType3??0, tee_type4: resForm.teeType4??0,
@@ -912,7 +923,13 @@ export default function DomesticGolf() {
             { label: "대표자명", node: <input style={inp} placeholder="홍길동님" value={resForm.repName} onChange={e => setResForm(p => ({...p, repName: e.target.value}))} /> },
             { label: "연락처", node: <input style={inp} placeholder="010-0000-0000" value={resForm.phone} onChange={e => setResForm(p => ({...p, phone: e.target.value}))} /> },
             { label: "박수", node: <select style={inp} value={resForm.nights} onChange={e => setResForm(p => ({...p, nights: e.target.value}))}>{["1박2일","2박3일","3박4일"].map(v => <option key={v}>{v}</option>)}</select> },
-            { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
+            { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => {
+              const t = parseInt(e.target.value);
+              const calcCnt = (tk) => { const oc = prod?.rooms[resForm[tk]]?.occ||4; return resForm[tk]&&resForm[tk]!=="NONE" ? t*(oc===4?1:2) : 0; };
+              setResForm(p => ({...p, teams: t,
+                rmCnt1: calcCnt("rmType"), rmCnt2: calcCnt("rmType2"),
+                rmCnt3: calcCnt("rmType3"), rmCnt4: calcCnt("rmType4")}));
+            }}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
             { label: "객실 구성", node: (<div>
                 {[
                   {tk:"rmType",ck:"rmCnt1"},{tk:"rmType2",ck:"rmCnt2"},
@@ -995,13 +1012,13 @@ export default function DomesticGolf() {
               combo: resForm.combo,
               teams: resForm.teams,
               rm_type: resForm.rmType,
-              rm_cnt1: resForm.rmCnt1||1,
+              rm_cnt1: resForm.rmCnt1 || (prod?.rooms[resForm.rmType]?.occ===4 ? resForm.teams*1 : resForm.teams*2),
               rm_type2: resForm.rmType2||"NONE",
-              rm_cnt2: resForm.rmCnt2||0,
+              rm_cnt2: resForm.rmCnt2 || (resForm.rmType2&&resForm.rmType2!=="NONE" ? (prod?.rooms[resForm.rmType2]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
               rm_type3: resForm.rmType3||"NONE",
-              rm_cnt3: resForm.rmCnt3||0,
+              rm_cnt3: resForm.rmCnt3 || (resForm.rmType3&&resForm.rmType3!=="NONE" ? (prod?.rooms[resForm.rmType3]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
               rm_type4: resForm.rmType4||"NONE",
-              rm_cnt4: resForm.rmCnt4||0,
+              rm_cnt4: resForm.rmCnt4 || (resForm.rmType4&&resForm.rmType4!=="NONE" ? (prod?.rooms[resForm.rmType4]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
               rm_ppl1: resForm.rmPpl1||0,
               rm_ppl2: resForm.rmPpl2||0,
               rm_ppl3: resForm.rmPpl3||0,
