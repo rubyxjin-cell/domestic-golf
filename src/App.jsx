@@ -547,53 +547,7 @@ export default function DomesticGolf() {
     } catch(e) { alert("저장 오류: " + e.message); }
   };
 
-  const doExcelDownload = async () => {
-    if (!selRes) return;
-    const r = selRes;
-    const inv = calcForRes(r);
-    if (!inv) { alert("요금 계산 오류"); return; }
-    const resProd = products[r.productId || "alpensia"];
-    const pkg = PACKAGES[r.nights] || PACKAGES["1박2일"];
-    const numNights = pkg.nights;
 
-    // 골프 라운드 데이터
-    const golfRounds = inv.gfList.map((g, i) => {
-      const ds = addDays(r.depDate, i);
-      const tees = [r.tee1, r.tee2, r.tee3, r.tee4];
-      const bf = (i > 0 && g.teeIdx === 0) ? ((resProd?.breakfast?.[season(ds)] ?? resProd?.breakfast) || 0) : 0;
-      const courseShort = g.cn?.includes("700") ? "700" : "알펜시아";
-      return { date: ds, course: courseShort, teams: r.teams, ppl: r.teams*4, tee: tees[i]||"", gf: g.gf - 2500, bf };
-    });
-
-    // 객실 데이터
-    const rmShort = t => t==="HIS33"?"콘도" : t==="HIR"?"호텔" : t==="IC"?"인터" : "";
-    const rmSpec = t => t==="HIS33"?"33" : t==="HIR"?"더블" : t==="IC"?"더블" : "";
-    const rawRmGroups = [
-      {type:r.rmType, cnt:r.rmCnt1||1}, {type:r.rmType2, cnt:r.rmCnt2||0},
-      {type:r.rmType3, cnt:r.rmCnt3||0}, {type:r.rmType4, cnt:r.rmCnt4||0},
-    ].filter(g => g.type && g.type !== "NONE" && g.cnt > 0);
-
-    const rooms = rawRmGroups.map(g => {
-      const rmDg = resProd?.rooms[g.type];
-      let rate = 0;
-      for(let n=0; n<numNights; n++) rate += getRmRate(rmDg, addDays(r.depDate, n));
-      return { date: r.depDate, type: rmShort(g.type), spec: rmSpec(g.type), cnt: g.cnt, rate: Math.round(rate/numNights) };
-    });
-
-    try {
-      const resp = await fetch("/api/excel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repName: r.repName, phone: r.phone, memo: r.memo, golfRounds, rooms }),
-      });
-      if (!resp.ok) { const e = await resp.json(); alert("오류: " + e.error); return; }
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "알펜시아예약신청서.xlsx"; a.click();
-      URL.revokeObjectURL(url);
-    } catch(e) { alert("다운로드 오류: " + e.message); }
-  };
 
   const renderAgt = () => {
     try {
@@ -639,7 +593,6 @@ export default function DomesticGolf() {
               시간추가금
             </label>
             <button onClick={doAgtDownload} style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "8px", border: "none", background: "#d32f2f", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📸 JPG 저장</button>
-            <button onClick={doExcelDownload} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: "#1d6f42", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📋 신청서 엑셀</button>
             <button onClick={() => { setShowEditPw(true); setEditPw(""); setEditPwErr(false); setEditMode(false); }}
               style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid " + G.primary, background: "#fff", color: G.primary, fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>✏️ 수정</button>
             <button onClick={() => { setShowDeleteConfirm(true); setDeletePw(""); setDeletePwErr(false); }}
