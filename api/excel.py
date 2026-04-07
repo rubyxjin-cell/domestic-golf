@@ -25,16 +25,17 @@ class handler(BaseHTTPRequestHandler):
             body = self.rfile.read(length)
             data = json.loads(body)
 
-tpl = os.path.join(os.path.dirname(__file__), '..', 'public', 'alpensia_template.xlsx')
-if not os.path.exists(tpl):
-    tpl = '/var/task/public/alpensia_template.xlsx'            wb = openpyxl.load_workbook(tpl)
+            tpl = os.path.join(os.path.dirname(__file__), '..', 'public', 'alpensia_template.xlsx')
+            if not os.path.exists(tpl):
+                tpl = '/var/task/public/alpensia_template.xlsx'
+
+            wb = openpyxl.load_workbook(tpl)
             ws = wb.active
 
             today = datetime.now()
             ws['G4'] = f"{today.year}년"
             ws['H4'] = f"{today.month}월"
             ws['J4'] = f"{today.day}일"
-
             ws['B6'] = data.get('repName', '')
             ws['G6'] = data.get('phone', '')
 
