@@ -1075,26 +1075,44 @@ export default function DomesticGolf() {
             <div style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 70px 80px 1fr 44px", gap: "6px", padding: "8px 12px", background: G.lighter, borderRadius: "8px", fontSize: "11px", fontWeight: "700", color: G.textSub, marginBottom: "4px", border: "1px solid " + G.border }}>
               <span>출발일</span><span>박수</span><span>대표자</span><span>연락처</span><span>티오프</span><span>골프장</span><span>구성</span><span style={{textAlign:"right"}}>팀수</span>
             </div>
-            {[...reservations].sort((a, b) => (a.depDate || "") > (b.depDate || "") ? 1 : -1).map((r) => {
-              const inv = calcForRes(r);
-              const productName = PRODUCT_LIST.find(p => p.id === (r.productId||"alpensia"))?.name || "-";
-              return (
-                <div key={r.id} onClick={() => { setSelRes(r); setAgtTab("invoice"); setEditMode(false); setShowEditPw(false); setEditPw(""); setShowDeleteConfirm(false); }}
-                  style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 70px 80px 1fr 44px", gap: "6px", padding: "12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, fontSize: "13px", alignItems: "center", transition: "background 0.15s" }}
-                  onMouseEnter={e => e.currentTarget.style.background=G.lighter}
-                  onMouseLeave={e => e.currentTarget.style.background=""}
-                >
-                  <span style={{ fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.depDate ? fmtD(r.depDate) : "-"}</span>
-                  <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.nights}</span>
-                  <span style={{ fontWeight: "700", color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.repName}</span>
-                  <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.phone}</span>
-                  <span style={{ fontSize: "11px", color: "#e67e22", fontWeight: "700", whiteSpace: "nowrap" }}>{r.tee1 || "-"}</span>
-                  <span style={{ fontSize: "11px", color: G.accent, fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{productName}</span>
-                  <span style={{ fontSize: "12px", color: G.text, whiteSpace: "nowrap" }}>{comboLabel(r.combo)}</span>
-                  <span style={{ textAlign: "right", fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.teams}팀</span>
-                </div>
-              );
-            })}
+            {(() => {
+              const today = new Date().toISOString().slice(0,10);
+              const sorted = [...reservations].sort((a, b) => (a.depDate || "") > (b.depDate || "") ? 1 : -1);
+              const upcoming = sorted.filter(r => (r.depDate || "") >= today);
+              const done = sorted.filter(r => (r.depDate || "") < today);
+              const renderRow = (r) => {
+                const productName = PRODUCT_LIST.find(p => p.id === (r.productId||"alpensia"))?.name || "-";
+                return (
+                  <div key={r.id} onClick={() => { setSelRes(r); setAgtTab("invoice"); setEditMode(false); setShowEditPw(false); setEditPw(""); setShowDeleteConfirm(false); }}
+                    style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 70px 80px 1fr 44px", gap: "6px", padding: "12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, fontSize: "13px", alignItems: "center", transition: "background 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background=G.lighter}
+                    onMouseLeave={e => e.currentTarget.style.background=""}
+                  >
+                    <span style={{ fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.depDate ? fmtD(r.depDate) : "-"}</span>
+                    <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.nights}</span>
+                    <span style={{ fontWeight: "700", color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.repName}</span>
+                    <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.phone}</span>
+                    <span style={{ fontSize: "11px", color: "#e67e22", fontWeight: "700", whiteSpace: "nowrap" }}>{r.tee1 || "-"}</span>
+                    <span style={{ fontSize: "11px", color: G.accent, fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{productName}</span>
+                    <span style={{ fontSize: "12px", color: G.text, whiteSpace: "nowrap" }}>{comboLabel(r.combo)}</span>
+                    <span style={{ textAlign: "right", fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.teams}팀</span>
+                  </div>
+                );
+              };
+              return (<>
+                {upcoming.map(renderRow)}
+                {done.length > 0 && (
+                  <details style={{ marginTop: "12px" }}>
+                    <summary style={{ cursor: "pointer", padding: "10px 12px", background: "#f0f0f0", borderRadius: "8px", fontSize: "12px", fontWeight: "700", color: "#888", listStyle: "none", display: "flex", alignItems: "center", gap: "6px" }}>
+                      ✅ 행사완료 {done.length}건 (클릭하여 펼치기)
+                    </summary>
+                    <div style={{ marginTop: "6px", opacity: 0.6 }}>
+                      {done.sort((a,b) => (a.depDate||"") > (b.depDate||"") ? -1 : 1).map(renderRow)}
+                    </div>
+                  </details>
+                )}
+              </>);
+            })()}
           </div>
         )}
       </div>
