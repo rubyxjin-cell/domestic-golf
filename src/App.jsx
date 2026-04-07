@@ -549,15 +549,6 @@ export default function DomesticGolf() {
 
   const doExcelDownload = async () => {
     if (!selRes) return;
-    // SheetJS CDN 로드
-    await new Promise((res, rej) => {
-      if (window.XLSX) { res(); return; }
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-    const XLSX = window.XLSX;
     const r = selRes;
     const inv = calcForRes(r);
     if (!inv) { alert("요금 계산 오류"); return; }
@@ -565,91 +556,43 @@ export default function DomesticGolf() {
     const pkg = PACKAGES[r.nights] || PACKAGES["1박2일"];
     const numNights = pkg.nights;
 
-    // 템플릿 파일 로드
-    let wb;
-    try {
-      const resp = await fetch("/alpensia_template.xlsx");
-      const ab = await resp.arrayBuffer();
-      wb = XLSX.read(ab, { type: "array", cellStyles: true });
-    } catch(e) {
-      alert("템플릿 파일 로드 실패: " + e.message); return;
-    }
-    const ws = wb.Sheets[wb.SheetNames[0]];
-
-    // 날짜 헬퍼
-    const depD = new Date(r.depDate + "T00:00:00");
-    const dow2 = ["일","월","화","수","목","금","토"];
-    const fmtDate = ds => { const d = new Date(ds+"T00:00:00"); return (d.getMonth()+1)+"월 "+d.getDate()+"일"; };
-    const fmtDow = ds => dow2[new Date(ds+"T00:00:00").getDay()];
-
-    // 골프장명 변환
-    const courseShort = key => key === "pub" ? "700" : "알펜시아";
-    const courseArr = inv.gfList.map((g, i) => {
+    // 골프 라운드 데이터
+    const golfRounds = inv.gfList.map((g, i) => {
       const ds = addDays(r.depDate, i);
-      return { date: fmtDate(ds), dow: fmtDow(ds), course: courseShort(inv.gfList[i]?.cn?.includes("700") ? "pub" : "prv"),
-               teams: r.teams, ppl: r.teams*4, tee: [r.tee1,r.tee2,r.tee3,r.tee4][i]||"",
-               gf: inv.gfList[i]?.gf - 2500, // 원가 그린피
-               bf: i > 0 && (inv.gfList[i]?.teeIdx===0) ? ((resProd?.breakfast?.[season(ds)] ?? resProd?.breakfast) || 0) : 0 };
+      const tees = [r.tee1, r.tee2, r.tee3, r.tee4];
+      const bf = (i > 0 && g.teeIdx === 0) ? ((resProd?.breakfast?.[season(ds)] ?? resProd?.breakfast) || 0) : 0;
+      const courseShort = g.cn?.includes("700") ? "700" : "알펜시아";
+      return { date: ds, course: courseShort, teams: r.teams, ppl: r.teams*4, tee: tees[i]||"", gf: g.gf - 2500, bf };
     });
 
-    // 객실 그룹
+    // 객실 데이터
     const rmShort = t => t==="HIS33"?"콘도" : t==="HIR"?"호텔" : t==="IC"?"인터" : "";
     const rmSpec = t => t==="HIS33"?"33" : t==="HIR"?"더블" : t==="IC"?"더블" : "";
     const rawRmGroups = [
-      {type:r.rmType, cnt:r.rmCnt1||1, ppl:r.rmPpl1||0},
-      {type:r.rmType2, cnt:r.rmCnt2||0, ppl:r.rmPpl2||0},
-      {type:r.rmType3, cnt:r.rmCnt3||0, ppl:r.rmPpl3||0},
-      {type:r.rmType4, cnt:r.rmCnt4||0, ppl:r.rmPpl4||0},
+      {type:r.rmType, cnt:r.rmCnt1||1}, {type:r.rmType2, cnt:r.rmCnt2||0},
+      {type:r.rmType3, cnt:r.rmCnt3||0}, {type:r.rmType4, cnt:r.rmCnt4||0},
     ].filter(g => g.type && g.type !== "NONE" && g.cnt > 0);
 
-    // 템플릿에 데이터 채우기 (셀 직접 쓰기)
-    const sc = (addr, v) => {
-      if (!ws[addr]) ws[addr] = { t: typeof v === "number" ? "n" : "s" };
-      ws[addr].v = v;
-      ws[addr].t = typeof v === "number" ? "n" : "s";
-    };
-
-    // 신청일
-    sc("G4", depD.getFullYear()+"년");
-    sc("H4", (depD.getMonth()+1)+"월");
-    sc("J4", depD.getDate()+"일");
-    // 예약자명, 연락처
-    sc("B6", r.repName||"");
-    sc("G6", r.phone||"");
-
-    // 골프 데이터 (행 11~14 = 엑셀 기준)
-    courseArr.slice(0,4).forEach((g,i) => {
-      const row = 11+i;
-      sc("A"+row, g.date); sc("B"+row, g.dow);
-      sc("C"+row, g.course); sc("D"+row, g.teams);
-      sc("E"+row, g.ppl); sc("F"+row, g.tee);
-      if(ws["H"+row]) { ws["H"+row].v = g.gf; ws["H"+row].t = "n"; }
-      else sc("H"+row, g.gf);
-      if(g.bf > 0) {
-        if(ws["J"+row]) { ws["J"+row].v = g.bf; ws["J"+row].t = "n"; }
-        else sc("J"+row, g.bf);
-      }
-    });
-
-    // 객실 데이터 (행 20~22 = 엑셀 기준)
-    rawRmGroups.slice(0,3).forEach((g,i) => {
-      const row = 20+i;
+    const rooms = rawRmGroups.map(g => {
       const rmDg = resProd?.rooms[g.type];
       let rate = 0;
-      for(let n=0;n<numNights;n++) rate += getRmRate(rmDg, addDays(r.depDate, n));
-      const ratePerNight = Math.round(rate/numNights);
-      sc("A"+row, fmtDate(r.depDate)); sc("B"+row, fmtDow(r.depDate));
-      sc("C"+row, rmShort(g.type)); sc("D"+row, rmSpec(g.type));
-      if(ws["F"+row]) { ws["F"+row].v = g.cnt; ws["F"+row].t = "n"; }
-      else sc("F"+row, g.cnt);
-      if(ws["G"+row]) { ws["G"+row].v = ratePerNight; ws["G"+row].t = "n"; }
-      else sc("G"+row, ratePerNight);
+      for(let n=0; n<numNights; n++) rate += getRmRate(rmDg, addDays(r.depDate, n));
+      return { date: r.depDate, type: rmShort(g.type), spec: rmSpec(g.type), cnt: g.cnt, rate: Math.round(rate/numNights) };
     });
 
-    // 특이사항
-    if(r.memo) sc("B27", r.memo);
-    const fileName = "알펜시아예약신청서.xlsx";
-    XLSX.writeFile(wb, fileName);
+    try {
+      const resp = await fetch("/api/excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repName: r.repName, phone: r.phone, memo: r.memo, golfRounds, rooms }),
+      });
+      if (!resp.ok) { const e = await resp.json(); alert("오류: " + e.error); return; }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "알펜시아예약신청서.xlsx"; a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { alert("다운로드 오류: " + e.message); }
   };
 
   const renderAgt = () => {
