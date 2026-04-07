@@ -565,6 +565,17 @@ export default function DomesticGolf() {
     const pkg = PACKAGES[r.nights] || PACKAGES["1박2일"];
     const numNights = pkg.nights;
 
+    // 템플릿 파일 로드
+    let wb;
+    try {
+      const resp = await fetch("/alpensia_template.xlsx");
+      const ab = await resp.arrayBuffer();
+      wb = XLSX.read(ab, { type: "array", cellStyles: true });
+    } catch(e) {
+      alert("템플릿 파일 로드 실패: " + e.message); return;
+    }
+    const ws = wb.Sheets[wb.SheetNames[0]];
+
     // 날짜 헬퍼
     const depD = new Date(r.depDate + "T00:00:00");
     const dow2 = ["일","월","화","수","목","금","토"];
@@ -591,94 +602,52 @@ export default function DomesticGolf() {
       {type:r.rmType4, cnt:r.rmCnt4||0, ppl:r.rmPpl4||0},
     ].filter(g => g.type && g.type !== "NONE" && g.cnt > 0);
 
-    // 워크북 생성
-    const wb = XLSX.utils.book_new();
-    const ws = {};
-    const setCell = (addr, v, s) => { ws[addr] = { v, t: typeof v === "number" ? "n" : "s", ...(s ? {s} : {}) }; };
-    const setF = (addr, f, s) => { ws[addr] = { f, t: "n", ...(s ? {s} : {}) }; };
+    // 템플릿에 데이터 채우기 (셀 직접 쓰기)
+    const sc = (addr, v) => {
+      if (!ws[addr]) ws[addr] = { t: typeof v === "number" ? "n" : "s" };
+      ws[addr].v = v;
+      ws[addr].t = typeof v === "number" ? "n" : "s";
+    };
 
-    const border = { top:{style:"thin"}, bottom:{style:"thin"}, left:{style:"thin"}, right:{style:"thin"} };
-    const hStyle = { font:{bold:true}, alignment:{horizontal:"center",vertical:"center",wrapText:true}, border };
-    const cStyle = { alignment:{horizontal:"center",vertical:"center"}, border };
-    const lStyle = { alignment:{horizontal:"left",vertical:"center"}, border };
+    // 신청일
+    sc("G4", depD.getFullYear()+"년");
+    sc("H4", (depD.getMonth()+1)+"월");
+    sc("J4", depD.getDate()+"일");
+    // 예약자명, 연락처
+    sc("B6", r.repName||"");
+    sc("G6", r.phone||"");
 
-    // 헤더
-    setCell("A2", "2026년 지정여행사 골프&객실 신청서", {font:{bold:true,sz:14}, alignment:{horizontal:"center",vertical:"center"}});
-    setCell("A3", "수신 : 알펜시아 골프마케팅팀 (FAX 02 573 7376)", {alignment:{horizontal:"left"}});
-    setCell("A4", "여행사명", hStyle); setCell("B4", "초이스골프", lStyle);
-    setCell("F4", "신청일"); setCell("G4", depD.getFullYear()+"년"); setCell("H4", (depD.getMonth()+1)+"월"); setCell("J4", depD.getDate()+"일");
-    setCell("A5", "담당자", hStyle); setCell("B5", "최진우", lStyle);
-    setCell("F5", "FAX"); setCell("G5", "02-545-9981", lStyle);
-    setCell("A6", "예약자명", hStyle); setCell("B6", r.repName||"", {font:{bold:true,sz:13}, alignment:{horizontal:"center",vertical:"center"}, border});
-    setCell("F6", "예약자 H.P"); setCell("G6", r.phone||"", {font:{bold:true,sz:13}, alignment:{horizontal:"center",vertical:"center"}, border});
-
-    // 골프 예약 헤더
-    setCell("A8", "골 프 예 약", {font:{bold:true,sz:12}, alignment:{horizontal:"center",vertical:"center"}});
-    ["날짜","요일","골프장\n(700/알펜시아)","팀수","인원","홀딩시간","확정시간","그린피(1인)","","1인/\n조식","합계",""].forEach((v,i) => {
-      if(v) setCell(String.fromCharCode(65+i)+"9", v, hStyle);
-    });
-
-    // 골프 데이터 행 (최대 4라운드, 행 10~13)
+    // 골프 데이터 (행 11~14 = 엑셀 기준)
     courseArr.slice(0,4).forEach((g,i) => {
-      const row = 10+i;
-      setCell("A"+row, g.date, cStyle); setCell("B"+row, g.dow, cStyle);
-      setCell("C"+row, g.course, cStyle); setCell("D"+row, g.teams, cStyle);
-      setCell("E"+row, g.ppl, cStyle); setCell("F"+row, g.tee, cStyle);
-      setCell("G"+row, "", cStyle); // 확정시간 비워둠
-      setCell("H"+row, g.gf, {...cStyle, numFmt:"#,##0"});
-      setCell("J"+row, g.bf||"", g.bf ? {...cStyle, numFmt:"#,##0"} : cStyle);
-      setF("K"+row, "SUM(((D"+row+"*4)*H"+row+")+(E"+row+"*J"+row+"))", {...cStyle, numFmt:"#,##0"});
-    });
-    // 빈 행
-    for(let i=courseArr.length; i<4; i++){
-      const row=10+i;
-      ["A","B","C","D","E","F","G","H","J","K"].forEach(c=>setCell(c+row,"",cStyle));
-      setF("K"+row,"SUM(((D"+row+"*4)*H"+row+")+(E"+row+"*J"+row+"))",{...cStyle,numFmt:"#,##0"});
-    }
-    setCell("A15","골 프 총 금 액(그린피 +조식) 1팀/4인그린피 적용",{font:{bold:true},alignment:{horizontal:"left",vertical:"center"},border});
-    setF("J15","SUM(K10:K13)",{font:{bold:true},numFmt:"#,##0",alignment:{horizontal:"center",vertical:"center"},border});
-
-    // 객실 헤더
-    setCell("A17","객 실 예 약",{font:{bold:true,sz:12},alignment:{horizontal:"center",vertical:"center"}});
-    ["날짜","요일","숙소\n(콘도/호텔/인터)","평형 or\n(트윈/더블)","","객실 수","요금","","","합계","",""].forEach((v,i)=>{
-      if(v) setCell(String.fromCharCode(65+i)+"18",v,hStyle);
+      const row = 11+i;
+      sc("A"+row, g.date); sc("B"+row, g.dow);
+      sc("C"+row, g.course); sc("D"+row, g.teams);
+      sc("E"+row, g.ppl); sc("F"+row, g.tee);
+      if(ws["H"+row]) { ws["H"+row].v = g.gf; ws["H"+row].t = "n"; }
+      else sc("H"+row, g.gf);
+      if(g.bf > 0) {
+        if(ws["J"+row]) { ws["J"+row].v = g.bf; ws["J"+row].t = "n"; }
+        else sc("J"+row, g.bf);
+      }
     });
 
-    // 객실 데이터 (최대 3그룹, 행 19~21)
-    rawRmGroups.slice(0,3).forEach((g,i)=>{
-      const row=19+i;
-      const ds = addDays(r.depDate, 0); // 첫날 기준
+    // 객실 데이터 (행 20~22 = 엑셀 기준)
+    rawRmGroups.slice(0,3).forEach((g,i) => {
+      const row = 20+i;
       const rmDg = resProd?.rooms[g.type];
-      const occ = rmDg?.occ||4;
-      const effPpl = (g.ppl&&g.ppl>0)?g.ppl:g.cnt*occ;
-      let rate=0;
-      for(let n=0;n<numNights;n++){ rate += getRmRate(rmDg,addDays(r.depDate,n)); }
+      let rate = 0;
+      for(let n=0;n<numNights;n++) rate += getRmRate(rmDg, addDays(r.depDate, n));
       const ratePerNight = Math.round(rate/numNights);
-      setCell("A"+row, fmtDate(r.depDate), cStyle); setCell("B"+row, fmtDow(r.depDate), cStyle);
-      setCell("C"+row, rmShort(g.type), cStyle); setCell("D"+row, rmSpec(g.type), cStyle);
-      setCell("F"+row, g.cnt, cStyle); setCell("G"+row, ratePerNight, {...cStyle,numFmt:"#,##0"});
-      setF("J"+row,"SUM(F"+row+"*G"+row+")",{...cStyle,numFmt:"#,##0"});
+      sc("A"+row, fmtDate(r.depDate)); sc("B"+row, fmtDow(r.depDate));
+      sc("C"+row, rmShort(g.type)); sc("D"+row, rmSpec(g.type));
+      if(ws["F"+row]) { ws["F"+row].v = g.cnt; ws["F"+row].t = "n"; }
+      else sc("F"+row, g.cnt);
+      if(ws["G"+row]) { ws["G"+row].v = ratePerNight; ws["G"+row].t = "n"; }
+      else sc("G"+row, ratePerNight);
     });
-    for(let i=rawRmGroups.length;i<3;i++){
-      const row=19+i;
-      ["A","B","C","D","F","G"].forEach(c=>setCell(c+row,"",cStyle));
-      setF("J"+row,"SUM(F"+row+"*G"+row+")",{...cStyle,numFmt:"#,##0"});
-    }
-    setCell("A23","객 실 총 금 액",{font:{bold:true},alignment:{horizontal:"left",vertical:"center"},border});
-    setF("J23","SUM(J19:J21)",{font:{bold:true},numFmt:"#,##0",alignment:{horizontal:"center",vertical:"center"},border});
-    setCell("A25","총 합 계(그린피 + 조식 + 객실)",{font:{bold:true},alignment:{horizontal:"left",vertical:"center"},border});
-    setF("J25","SUM(J15+J23)",{font:{bold:true,sz:13},numFmt:"#,##0",alignment:{horizontal:"center",vertical:"center"},border});
-    setCell("A26","특이사항",{font:{bold:true},alignment:{horizontal:"left",vertical:"center"},border});
-    setCell("B26",r.memo||"",lStyle);
 
-    // 열 너비 설정
-    ws["!cols"] = [
-      {wch:10},{wch:6},{wch:14},{wch:6},{wch:6},{wch:10},{wch:10},{wch:10},{wch:4},{wch:10},{wch:12},{wch:4}
-    ];
-    // 범위 설정
-    ws["!ref"] = "A1:L45";
-
-    XLSX.utils.book_append_sheet(wb, ws, "예약신청서");
+    // 특이사항
+    if(r.memo) sc("B27", r.memo);
     const fileName = "알펜시아예약신청서.xlsx";
     XLSX.writeFile(wb, fileName);
   };
