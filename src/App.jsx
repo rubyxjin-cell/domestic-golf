@@ -245,15 +245,17 @@ export default function DomesticGolf() {
   const [roundTees, setRoundTees] = useState([1,0]); // 라운드별 티타임
   // AGT 예약관리
   const [agtTab, setAgtTab] = useState("login"); // login | list | form | invoice
-  const [agtAuthed, setAgtAuthed] = useState(null); // authed AGT object
+  const [agtResTypeTab, setAgtResTypeTab] = useState("confirmed"); // confirmed | tentative
+  const [agtAuthed, setAgtAuthed] = useState(null);
   const [agtPw, setAgtPw] = useState("");
   const [agtPwErr, setAgtPwErr] = useState(false);
   const [reservations, setReservations] = useState([]);
   const [agtResLoaded, setAgtResLoaded] = useState(false);
   const [agtResLoading, setAgtResLoading] = useState(false);
-  const [selRes, setSelRes] = useState(null); // 선택된 예약 (인보이스용)
-  const [showTeeSur, setShowTeeSur] = useState(true); // 인보이스 시간추가금 표시 여부
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [selRes, setSelRes] = useState(null);
+  const [showTeeSur, setShowTeeSur] = useState(true);
+  const [agtPage, setAgtPage] = useState(1);
+  const AGT_PAGE_SIZE = 15;
   const [deletePw, setDeletePw] = useState("");
   const [deletePwErr, setDeletePwErr] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -261,7 +263,7 @@ export default function DomesticGolf() {
   const [editPw, setEditPw] = useState("");
   const [editPwErr, setEditPwErr] = useState(false);
   const [showEditPw, setShowEditPw] = useState(false);
-  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, bfIncluded: true, rmType: "HIS33", rmCnt1: 1, rmType2: "NONE", rmCnt2: 0, rmType3: "NONE", rmCnt3: 0, rmType4: "NONE", rmCnt4: 0, rmPpl1: 0, rmPpl2: 0, rmPpl3: 0, rmPpl4: 0, tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, teeType1: 1, teeType2: 0, teeType3: 0, teeType4: 0, roundCourse1: "prv", roundCourse2: "prv", roundCourse3: "prv", roundCourse4: "prv", memo: "" });
+  const [resForm, setResForm] = useState({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, gfPpl: 0, bfPpl: 0, bfIncluded: true, rmType: "HIS33", rmCnt1: 1, rmType2: "NONE", rmCnt2: 0, rmType3: "NONE", rmCnt3: 0, rmType4: "NONE", rmCnt4: 0, rmPpl1: 0, rmPpl2: 0, rmPpl3: 0, rmPpl4: 0, tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, teeType1: 1, teeType2: 0, teeType3: 0, teeType4: 0, roundCourse1: "prv", roundCourse2: "prv", roundCourse3: "prv", roundCourse4: "prv", res_type: "confirmed", memo: "" });
   const [teams, setTeams] = useState(1);
   const [rmGroups, setRmGroups] = useState([{ type: "HIS33", cnt: 1, ppl: 0 }]); // 요금계산탭 객실 그룹 (ppl=0이면 자동계산)
   const [customSell, setCustomSell] = useState("");
@@ -420,11 +422,31 @@ export default function DomesticGolf() {
           bfIncluded: r.bf_included !== false,
           gfPpl: Number(r.gf_ppl) || 0, bfPpl: Number(r.bf_ppl) || 0,
           memo: r.memo, createdAt: r.created_at,
+          resType: r.res_type || "confirmed",
         })));
       })
       .catch(() => setReservations([]))
       .finally(() => { setAgtResLoaded(true); setAgtResLoading(false); });
   }, [agtAuthed]);
+
+  // 가예약 확인날짜: 출발일 6주전 주의 월(대중제)/수(회원제)
+  const getConfirmDates = (depDate, combo) => {
+    if (!depDate) return [];
+    const dep = new Date(depDate + "T00:00:00");
+    const base = new Date(dep); base.setDate(dep.getDate() - 42);
+    const baseDay = base.getDay(); // 0=일
+    // 그 주의 월요일
+    const monDiff = baseDay === 0 ? -6 : 1 - baseDay;
+    const mon = new Date(base); mon.setDate(base.getDate() + monDiff);
+    const wed = new Date(mon); wed.setDate(mon.getDate() + 2);
+    const fmt = d => (d.getMonth()+1) + "/" + d.getDate() + "(" + ["일","월","화","수","목","금","토"][d.getDay()] + ")";
+    const hasPub = (combo||"").includes("pub");
+    const hasPrv = (combo||"").includes("prv");
+    const results = [];
+    if (hasPub) results.push({ label: "대중제 확인", date: fmt(mon), color: "#27ae60" });
+    if (hasPrv) results.push({ label: "회원제 확인", date: fmt(wed), color: "#2980b9" });
+    return results;
+  };
 
   const calcForRes = (r) => {
     const resProd = products[r.productId || "alpensia"];
@@ -593,6 +615,18 @@ export default function DomesticGolf() {
               시간추가금
             </label>
             <button onClick={doAgtDownload} style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "8px", border: "none", background: "#d32f2f", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📸 JPG 저장</button>
+            {(selRes?.resType||"confirmed") === "tentative" && (
+              <button onClick={() => {
+                if (!window.confirm("확정예약으로 변경하시겠습니까?")) return;
+                sbFetch("PATCH", "reservations?id=eq." + selRes.id, { res_type: "confirmed" })
+                  .then(() => {
+                    const updated = { ...selRes, resType: "confirmed" };
+                    setReservations(p => p.map(r => r.id === selRes.id ? updated : r));
+                    setSelRes(updated);
+                    alert("확정예약으로 변경되었습니다!");
+                  }).catch(e => alert("오류: " + e.message));
+              }} style={{ padding: "8px 14px", borderRadius: "8px", border: "none", background: G.primary, color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>✅ 확정으로 변경</button>
+            )}
             <button onClick={() => { setShowEditPw(true); setEditPw(""); setEditPwErr(false); setEditMode(false); }}
               style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid " + G.primary, background: "#fff", color: G.primary, fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>✏️ 수정</button>
             <button onClick={() => { setShowDeleteConfirm(true); setDeletePw(""); setDeletePwErr(false); }}
@@ -606,10 +640,10 @@ export default function DomesticGolf() {
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <input type="password" maxLength={8} value={editPw}
                   onChange={e => { setEditPw(e.target.value); setEditPwErr(false); }}
-                  onKeyDown={e => { if (e.key === "Enter") { if (editPw === agtAuthed?.pw) { setEditMode(true); setShowEditPw(false); setResForm({...selRes, depDate: selRes.depDate, productId: selRes.productId||"alpensia"}); setAgtTab("edit"); } else setEditPwErr(true); }}}
+                  onKeyDown={e => { if (e.key === "Enter") { if (editPw === agtAuthed?.pw) { setEditMode(true); setShowEditPw(false); setResForm({...selRes, depDate: selRes.depDate, productId: selRes.productId||"alpensia", res_type: selRes.resType||"confirmed"}); setAgtTab("edit"); } else setEditPwErr(true); }}}
                   placeholder="비밀번호 입력"
                   style={{ ...inp, width: "160px", letterSpacing: "4px", fontSize: "16px", textAlign: "center" }} />
-                <button onClick={() => { if (editPw === agtAuthed?.pw) { setEditMode(true); setShowEditPw(false); setResForm({...selRes, productId: selRes.productId||"alpensia"}); setAgtTab("edit"); } else setEditPwErr(true); }}
+                <button onClick={() => { if (editPw === agtAuthed?.pw) { setEditMode(true); setShowEditPw(false); setResForm({...selRes, productId: selRes.productId||"alpensia", res_type: selRes.resType||"confirmed"}); setAgtTab("edit"); } else setEditPwErr(true); }}
                   style={{ padding: "10px 16px", background: G.primary, color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>확인</button>
                 <button onClick={() => { setShowEditPw(false); setEditPw(""); setEditPwErr(false); }}
                   style={{ padding: "10px 14px", background: "#fff", color: "#888", border: "1px solid #ddd", borderRadius: "8px", fontSize: "13px", cursor: "pointer" }}>취소</button>
@@ -865,6 +899,13 @@ export default function DomesticGolf() {
               label: (i+1)+"일차 추가금",
               node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
             }))),
+            { label: "예약 유형", node: (
+              <div style={{ display: "flex", gap: "8px" }}>
+                {[["confirmed","✅ 확정예약"],["tentative","📋 가예약"]].map(([k,l]) => (
+                  <button key={k} type="button" onClick={() => setResForm(p => ({...p, res_type: k}))} style={{ flex:1, padding:"10px", borderRadius:"8px", border:"none", fontWeight:"700", fontSize:"12px", cursor:"pointer", background: resForm.res_type===k ? G.primary : "#f0f0f0", color: resForm.res_type===k ? "#fff" : "#888" }}>{l}</button>
+                ))}
+              </div>
+            ) },
             { label: "메모", node: <input style={inp} value={resForm.memo||""} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} placeholder="특이사항" /> },
           ].map(({ label, node }, idx) => (
             <div key={idx}><label style={{ fontSize: "12px", fontWeight: "700", color: "#555", display: "block", marginBottom: "4px" }}>{label}</label>{node}</div>
@@ -879,7 +920,7 @@ export default function DomesticGolf() {
             tee1: resForm.tee1||"", tee2: resForm.tee2||"", tee3: resForm.tee3||"", tee4: resForm.tee4||"",
             tee_sur1: resForm.teeSur1||0, tee_sur2: resForm.teeSur2||0, tee_sur3: resForm.teeSur3||0, tee_sur4: resForm.teeSur4||0,
             tee_type1: resForm.teeType1??1, tee_type2: resForm.teeType2??0, tee_type3: resForm.teeType3??0, tee_type4: resForm.teeType4??0,
-            gf_ppl: Number(resForm.gfPpl)||0, bf_ppl: Number(resForm.bfPpl)||0, bf_included: resForm.bfIncluded !== false, memo: resForm.memo||""
+            gf_ppl: Number(resForm.gfPpl)||0, bf_ppl: Number(resForm.bfPpl)||0, bf_included: resForm.bfIncluded !== false, memo: resForm.memo||"", res_type: resForm.res_type||"confirmed"
           }).then(() => {
             const updated = { ...selRes, ...resForm,
               depDate: resForm.depDate, repName: resForm.repName, phone: resForm.phone,
@@ -889,7 +930,7 @@ export default function DomesticGolf() {
               teeSur1: resForm.teeSur1||0, teeSur2: resForm.teeSur2||0, teeSur3: resForm.teeSur3||0, teeSur4: resForm.teeSur4||0,
               teeType1: resForm.teeType1??1, teeType2: resForm.teeType2??0, teeType3: resForm.teeType3??0, teeType4: resForm.teeType4??0,
               bfIncluded: resForm.bfIncluded !== false,
-              gfPpl: Number(resForm.gfPpl)||0, bfPpl: Number(resForm.bfPpl)||0, memo: resForm.memo||"" };
+              gfPpl: Number(resForm.gfPpl)||0, bfPpl: Number(resForm.bfPpl)||0, memo: resForm.memo||"", resType: resForm.res_type||"confirmed" };
             setReservations(p => p.map(r => r.id === selRes.id ? updated : r));
             setSelRes(updated);
             setAgtTab("invoice"); setEditMode(false);
@@ -976,6 +1017,13 @@ export default function DomesticGolf() {
               label: (i+1)+"일차 추가금",
               node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
             }))),
+            { label: "예약 유형", node: (
+              <div style={{ display: "flex", gap: "8px" }}>
+                {[["confirmed","✅ 확정예약"],["tentative","📋 가예약"]].map(([k,l]) => (
+                  <button key={k} type="button" onClick={() => setResForm(p => ({...p, res_type: k}))} style={{ flex:1, padding:"10px", borderRadius:"8px", border:"none", fontWeight:"700", fontSize:"12px", cursor:"pointer", background: resForm.res_type===k ? G.primary : "#f0f0f0", color: resForm.res_type===k ? "#fff" : "#888" }}>{l}</button>
+                ))}
+              </div>
+            ) },
             { label: "메모", node: <input style={inp} placeholder="특이사항" value={resForm.memo} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} /> },
           ].map(({ label, node }, idx) => (
             <div key={idx}>
@@ -1024,23 +1072,27 @@ export default function DomesticGolf() {
               bf_ppl: Number(resForm.bfPpl) || 0,
               bf_included: resForm.bfIncluded !== false,
               memo: resForm.memo || "",
+              res_type: resForm.res_type || "confirmed",
             }).then(data => {
               const r = data[0];
               setReservations(p => [...p, {
                 id: r.id, agtId: r.agt_id, depDate: r.dep_date, repName: r.rep_name,
                 phone: r.phone, productId: r.product_id, nights: r.nights,
                 combo: r.combo, teams: r.teams, rmType: r.rm_type,
+                rmCnt1: Number(r.rm_cnt1)||1,
                 rmType2: r.rm_type2||"NONE", rmCnt2: Number(r.rm_cnt2)||0,
                 rmType3: r.rm_type3||"NONE", rmCnt3: Number(r.rm_cnt3)||0,
                 rmType4: r.rm_type4||"NONE", rmCnt4: Number(r.rm_cnt4)||0,
+                rmPpl1: Number(r.rm_ppl1)||0, rmPpl2: Number(r.rm_ppl2)||0,
+                rmPpl3: Number(r.rm_ppl3)||0, rmPpl4: Number(r.rm_ppl4)||0,
                 tee1: r.tee1, tee2: r.tee2, tee3: r.tee3, tee4: r.tee4,
                 teeSur1: r.tee_sur1||0, teeSur2: r.tee_sur2||0, teeSur3: r.tee_sur3||0, teeSur4: r.tee_sur4||0,
                 teeType1: r.tee_type1??1, teeType2: r.tee_type2??0, teeType3: r.tee_type3??0, teeType4: r.tee_type4??0,
                 bfIncluded: r.bf_included !== false,
                 gfPpl: Number(r.gf_ppl)||0, bfPpl: Number(r.bf_ppl)||0,
-                memo: r.memo, createdAt: r.created_at,
+                memo: r.memo, createdAt: r.created_at, resType: r.res_type||"confirmed",
               }]);
-              setResForm({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", rmCnt1: 1, rmType2: "NONE", rmCnt2: 0, rmType3: "NONE", rmCnt3: 0, rmType4: "NONE", rmCnt4: 0, rmPpl1: 0, rmPpl2: 0, rmPpl3: 0, rmPpl4: 0, tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, memo: "" });
+              setResForm({ depDate: "", repName: "", phone: "", productId: "alpensia", nights: "1박2일", combo: "prv2", teams: 1, rmType: "HIS33", rmCnt1: 1, rmType2: "NONE", rmCnt2: 0, rmType3: "NONE", rmCnt3: 0, rmType4: "NONE", rmCnt4: 0, rmPpl1: 0, rmPpl2: 0, rmPpl3: 0, rmPpl4: 0, tee1: "", tee2: "", tee3: "", tee4: "", teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0, res_type: "confirmed", memo: "" });
               setAgtTab("list");
             }).catch(e => alert("저장 오류: " + e.message));
           }}
@@ -1065,6 +1117,12 @@ export default function DomesticGolf() {
               <button onClick={() => { setAgtAuthed(null); setAgtTab("login"); setReservations([]); setAgtResLoaded(false); }} style={{ padding: "8px 12px", background: "#f0f0f0", color: "#666", border: "none", borderRadius: "8px", fontSize: "12px", cursor: "pointer" }}>로그아웃</button>
             </div>
           </div>
+          {/* 확정/가예약 탭 */}
+          <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
+            {[["confirmed","✅ 확정예약"],["tentative","📋 가예약"]].map(([k,l]) => (
+              <button key={k} onClick={() => { setAgtResTypeTab(k); setAgtPage(1); }} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", fontWeight: "800", fontSize: "13px", cursor: "pointer", background: agtResTypeTab===k ? G.primary : "#f0f0f0", color: agtResTypeTab===k ? "#fff" : "#888" }}>{l} {reservations.filter(r=>(r.resType||"confirmed")===k).length}건</button>
+            ))}
+          </div>
         </div>
         {reservations.length === 0 ? (
           agtResLoading ? <div style={{ ...sc, textAlign: "center", color: "#bbb", padding: "40px" }}>불러오는 중...</div> : <div style={{ ...sc, textAlign: "center", color: "#bbb", padding: "40px" }}>등록된 예약이 없습니다</div>
@@ -1077,30 +1135,53 @@ export default function DomesticGolf() {
             </div>
             {(() => {
               const today = new Date().toISOString().slice(0,10);
-              const sorted = [...reservations].sort((a, b) => (a.depDate || "") > (b.depDate || "") ? 1 : -1);
+              const sorted = [...reservations]
+                .filter(r => (r.resType||"confirmed") === agtResTypeTab)
+                .sort((a, b) => (a.depDate || "") > (b.depDate || "") ? 1 : -1);
               const upcoming = sorted.filter(r => (r.depDate || "") >= today);
               const done = sorted.filter(r => (r.depDate || "") < today);
+              const totalPages = Math.ceil(upcoming.length / AGT_PAGE_SIZE);
+              const paged = upcoming.slice((agtPage-1)*AGT_PAGE_SIZE, agtPage*AGT_PAGE_SIZE);
               const renderRow = (r) => {
                 const productName = PRODUCT_LIST.find(p => p.id === (r.productId||"alpensia"))?.name || "-";
+                const confirmDates = agtResTypeTab === "tentative" ? getConfirmDates(r.depDate, r.combo) : [];
                 return (
                   <div key={r.id} onClick={() => { setSelRes(r); setAgtTab("invoice"); setEditMode(false); setShowEditPw(false); setEditPw(""); setShowDeleteConfirm(false); }}
-                    style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 70px 80px 1fr 44px", gap: "6px", padding: "12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, fontSize: "13px", alignItems: "center", transition: "background 0.15s" }}
+                    style={{ padding: "10px 12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, transition: "background 0.15s" }}
                     onMouseEnter={e => e.currentTarget.style.background=G.lighter}
                     onMouseLeave={e => e.currentTarget.style.background=""}
                   >
-                    <span style={{ fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.depDate ? fmtD(r.depDate) : "-"}</span>
-                    <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.nights}</span>
-                    <span style={{ fontWeight: "700", color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.repName}</span>
-                    <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.phone}</span>
-                    <span style={{ fontSize: "11px", color: "#e67e22", fontWeight: "700", whiteSpace: "nowrap" }}>{r.tee1 || "-"}</span>
-                    <span style={{ fontSize: "11px", color: G.accent, fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{productName}</span>
-                    <span style={{ fontSize: "12px", color: G.text, whiteSpace: "nowrap" }}>{comboLabel(r.combo)}</span>
-                    <span style={{ textAlign: "right", fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.teams}팀</span>
+                    <div style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 70px 80px 1fr 44px", gap: "6px", fontSize: "13px", alignItems: "center" }}>
+                      <span style={{ fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.depDate ? fmtD(r.depDate) : "-"}</span>
+                      <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.nights}</span>
+                      <span style={{ fontWeight: "700", color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.repName}</span>
+                      <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.phone}</span>
+                      <span style={{ fontSize: "11px", color: "#e67e22", fontWeight: "700", whiteSpace: "nowrap" }}>{r.tee1 || "-"}</span>
+                      <span style={{ fontSize: "11px", color: G.accent, fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{productName}</span>
+                      <span style={{ fontSize: "12px", color: G.text, whiteSpace: "nowrap" }}>{comboLabel(r.combo)}</span>
+                      <span style={{ textAlign: "right", fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.teams}팀</span>
+                    </div>
+                    {confirmDates.length > 0 && (
+                      <div style={{ display: "flex", gap: "8px", marginTop: "5px", flexWrap: "wrap" }}>
+                        {confirmDates.map((cd, i) => (
+                          <span key={i} style={{ fontSize: "11px", fontWeight: "700", color: cd.color, background: cd.color+"18", padding: "2px 8px", borderRadius: "4px" }}>
+                            🔔 {cd.label}: {cd.date}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               };
               return (<>
-                {upcoming.map(renderRow)}
+                {paged.map(renderRow)}
+                {totalPages > 1 && (
+                  <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
+                    {Array.from({length: totalPages}, (_, i) => i+1).map(p => (
+                      <button key={p} onClick={() => setAgtPage(p)} style={{ width: "34px", height: "34px", borderRadius: "8px", border: agtPage===p ? "none" : "1px solid "+G.border, background: agtPage===p ? G.primary : "#fff", color: agtPage===p ? "#fff" : G.textMid, fontWeight: agtPage===p ? "800" : "600", fontSize: "13px", cursor: "pointer" }}>{p}</button>
+                    ))}
+                  </div>
+                )}
                 {done.length > 0 && (
                   <details style={{ marginTop: "12px" }}>
                     <summary style={{ cursor: "pointer", padding: "10px 12px", background: "#f0f0f0", borderRadius: "8px", fontSize: "12px", fontWeight: "700", color: "#888", listStyle: "none", display: "flex", alignItems: "center", gap: "6px" }}>
