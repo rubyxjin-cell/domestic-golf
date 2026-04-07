@@ -547,6 +547,142 @@ export default function DomesticGolf() {
     } catch(e) { alert("저장 오류: " + e.message); }
   };
 
+  const doExcelDownload = async () => {
+    if (!selRes) return;
+    // SheetJS CDN 로드
+    await new Promise((res, rej) => {
+      if (window.XLSX) { res(); return; }
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+    const XLSX = window.XLSX;
+    const r = selRes;
+    const inv = calcForRes(r);
+    if (!inv) { alert("요금 계산 오류"); return; }
+    const resProd = products[r.productId || "alpensia"];
+    const pkg = PACKAGES[r.nights] || PACKAGES["1박2일"];
+    const numNights = pkg.nights;
+
+    // 날짜 헬퍼
+    const depD = new Date(r.depDate + "T00:00:00");
+    const dow2 = ["일","월","화","수","목","금","토"];
+    const fmtDate = ds => { const d = new Date(ds+"T00:00:00"); return (d.getMonth()+1)+"월 "+d.getDate()+"일"; };
+    const fmtDow = ds => dow2[new Date(ds+"T00:00:00").getDay()];
+
+    // 골프장명 변환
+    const courseShort = key => key === "pub" ? "700" : "알펜시아";
+    const courseArr = inv.gfList.map((g, i) => {
+      const ds = addDays(r.depDate, i);
+      return { date: fmtDate(ds), dow: fmtDow(ds), course: courseShort(inv.gfList[i]?.cn?.includes("700") ? "pub" : "prv"),
+               teams: r.teams, ppl: r.teams*4, tee: [r.tee1,r.tee2,r.tee3,r.tee4][i]||"",
+               gf: inv.gfList[i]?.gf - 2500, // 원가 그린피
+               bf: i > 0 && (inv.gfList[i]?.teeIdx===0) ? ((resProd?.breakfast?.[season(ds)] ?? resProd?.breakfast) || 0) : 0 };
+    });
+
+    // 객실 그룹
+    const rmShort = t => t==="HIS33"?"콘도" : t==="HIR"?"호텔" : t==="IC"?"인터" : "";
+    const rmSpec = t => t==="HIS33"?"33" : t==="HIR"?"더블" : t==="IC"?"더블" : "";
+    const rawRmGroups = [
+      {type:r.rmType, cnt:r.rmCnt1||1, ppl:r.rmPpl1||0},
+      {type:r.rmType2, cnt:r.rmCnt2||0, ppl:r.rmPpl2||0},
+      {type:r.rmType3, cnt:r.rmCnt3||0, ppl:r.rmPpl3||0},
+      {type:r.rmType4, cnt:r.rmCnt4||0, ppl:r.rmPpl4||0},
+    ].filter(g => g.type && g.type !== "NONE" && g.cnt > 0);
+
+    // 워크북 생성
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const setCell = (addr, v, s) => { ws[addr] = { v, t: typeof v === "number" ? "n" : "s", ...(s ? {s} : {}) }; };
+    const setF = (addr, f, s) => { ws[addr] = { f, t: "n", ...(s ? {s} : {}) }; };
+
+    const border = { top:{style:"thin"}, bottom:{style:"thin"}, left:{style:"thin"}, right:{style:"thin"} };
+    const hStyle = { font:{bold:true}, alignment:{horizontal:"center",vertical:"center",wrapText:true}, border };
+    const cStyle = { alignment:{horizontal:"center",vertical:"center"}, border };
+    const lStyle = { alignment:{horizontal:"left",vertical:"center"}, border };
+
+    // 헤더
+    setCell("A2", "2026년 지정여행사 골프&객실 신청서", {font:{bold:true,sz:14}, alignment:{horizontal:"center",vertical:"center"}});
+    setCell("A3", "수신 : 알펜시아 골프마케팅팀 (FAX 02 573 7376)", {alignment:{horizontal:"left"}});
+    setCell("A4", "여행사명", hStyle); setCell("B4", "초이스골프", lStyle);
+    setCell("F4", "신청일"); setCell("G4", depD.getFullYear()+"년"); setCell("H4", (depD.getMonth()+1)+"월"); setCell("J4", depD.getDate()+"일");
+    setCell("A5", "담당자", hStyle); setCell("B5", "최진우", lStyle);
+    setCell("F5", "FAX"); setCell("G5", "02-545-9981", lStyle);
+    setCell("A6", "예약자명", hStyle); setCell("B6", r.repName||"", {font:{bold:true,sz:13}, alignment:{horizontal:"center",vertical:"center"}, border});
+    setCell("F6", "예약자 H.P"); setCell("G6", r.phone||"", {font:{bold:true,sz:13}, alignment:{horizontal:"center",vertical:"center"}, border});
+
+    // 골프 예약 헤더
+    setCell("A8", "골 프 예 약", {font:{bold:true,sz:12}, alignment:{horizontal:"center",vertical:"center"}});
+    ["날짜","요일","골프장\n(700/알펜시아)","팀수","인원","홀딩시간","확정시간","그린피(1인)","","1인/\n조식","합계",""].forEach((v,i) => {
+      if(v) setCell(String.fromCharCode(65+i)+"9", v, hStyle);
+    });
+
+    // 골프 데이터 행 (최대 4라운드, 행 10~13)
+    courseArr.slice(0,4).forEach((g,i) => {
+      const row = 10+i;
+      setCell("A"+row, g.date, cStyle); setCell("B"+row, g.dow, cStyle);
+      setCell("C"+row, g.course, cStyle); setCell("D"+row, g.teams, cStyle);
+      setCell("E"+row, g.ppl, cStyle); setCell("F"+row, g.tee, cStyle);
+      setCell("G"+row, "", cStyle); // 확정시간 비워둠
+      setCell("H"+row, g.gf, {...cStyle, numFmt:"#,##0"});
+      setCell("J"+row, g.bf||"", g.bf ? {...cStyle, numFmt:"#,##0"} : cStyle);
+      setF("K"+row, "SUM(((D"+row+"*4)*H"+row+")+(E"+row+"*J"+row+"))", {...cStyle, numFmt:"#,##0"});
+    });
+    // 빈 행
+    for(let i=courseArr.length; i<4; i++){
+      const row=10+i;
+      ["A","B","C","D","E","F","G","H","J","K"].forEach(c=>setCell(c+row,"",cStyle));
+      setF("K"+row,"SUM(((D"+row+"*4)*H"+row+")+(E"+row+"*J"+row+"))",{...cStyle,numFmt:"#,##0"});
+    }
+    setCell("A15","골 프 총 금 액(그린피 +조식) 1팀/4인그린피 적용",{font:{bold:true},alignment:{horizontal:"left",vertical:"center"},border});
+    setF("J15","SUM(K10:K13)",{font:{bold:true},numFmt:"#,##0",alignment:{horizontal:"center",vertical:"center"},border});
+
+    // 객실 헤더
+    setCell("A17","객 실 예 약",{font:{bold:true,sz:12},alignment:{horizontal:"center",vertical:"center"}});
+    ["날짜","요일","숙소\n(콘도/호텔/인터)","평형 or\n(트윈/더블)","","객실 수","요금","","","합계","",""].forEach((v,i)=>{
+      if(v) setCell(String.fromCharCode(65+i)+"18",v,hStyle);
+    });
+
+    // 객실 데이터 (최대 3그룹, 행 19~21)
+    rawRmGroups.slice(0,3).forEach((g,i)=>{
+      const row=19+i;
+      const ds = addDays(r.depDate, 0); // 첫날 기준
+      const rmDg = resProd?.rooms[g.type];
+      const occ = rmDg?.occ||4;
+      const effPpl = (g.ppl&&g.ppl>0)?g.ppl:g.cnt*occ;
+      let rate=0;
+      for(let n=0;n<numNights;n++){ rate += getRmRate(rmDg,addDays(r.depDate,n)); }
+      const ratePerNight = Math.round(rate/numNights);
+      setCell("A"+row, fmtDate(r.depDate), cStyle); setCell("B"+row, fmtDow(r.depDate), cStyle);
+      setCell("C"+row, rmShort(g.type), cStyle); setCell("D"+row, rmSpec(g.type), cStyle);
+      setCell("F"+row, g.cnt, cStyle); setCell("G"+row, ratePerNight, {...cStyle,numFmt:"#,##0"});
+      setF("J"+row,"SUM(F"+row+"*G"+row+")",{...cStyle,numFmt:"#,##0"});
+    });
+    for(let i=rawRmGroups.length;i<3;i++){
+      const row=19+i;
+      ["A","B","C","D","F","G"].forEach(c=>setCell(c+row,"",cStyle));
+      setF("J"+row,"SUM(F"+row+"*G"+row+")",{...cStyle,numFmt:"#,##0"});
+    }
+    setCell("A23","객 실 총 금 액",{font:{bold:true},alignment:{horizontal:"left",vertical:"center"},border});
+    setF("J23","SUM(J19:J21)",{font:{bold:true},numFmt:"#,##0",alignment:{horizontal:"center",vertical:"center"},border});
+    setCell("A25","총 합 계(그린피 + 조식 + 객실)",{font:{bold:true},alignment:{horizontal:"left",vertical:"center"},border});
+    setF("J25","SUM(J15+J23)",{font:{bold:true,sz:13},numFmt:"#,##0",alignment:{horizontal:"center",vertical:"center"},border});
+    setCell("A26","특이사항",{font:{bold:true},alignment:{horizontal:"left",vertical:"center"},border});
+    setCell("B26",r.memo||"",lStyle);
+
+    // 열 너비 설정
+    ws["!cols"] = [
+      {wch:10},{wch:6},{wch:14},{wch:6},{wch:6},{wch:10},{wch:10},{wch:10},{wch:4},{wch:10},{wch:12},{wch:4}
+    ];
+    // 범위 설정
+    ws["!ref"] = "A1:L45";
+
+    XLSX.utils.book_append_sheet(wb, ws, "예약신청서");
+    const fileName = "알펜시아예약신청서.xlsx";
+    XLSX.writeFile(wb, fileName);
+  };
+
   const renderAgt = () => {
     try {
     const fmt2 = n => n?.toLocaleString() || "0";
@@ -591,6 +727,7 @@ export default function DomesticGolf() {
               시간추가금
             </label>
             <button onClick={doAgtDownload} style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "8px", border: "none", background: "#d32f2f", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📸 JPG 저장</button>
+            <button onClick={doExcelDownload} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: "#1d6f42", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📋 신청서 엑셀</button>
             <button onClick={() => { setShowEditPw(true); setEditPw(""); setEditPwErr(false); setEditMode(false); }}
               style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid " + G.primary, background: "#fff", color: G.primary, fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>✏️ 수정</button>
             <button onClick={() => { setShowDeleteConfirm(true); setDeletePw(""); setDeletePwErr(false); }}
@@ -801,13 +938,7 @@ export default function DomesticGolf() {
             { label: "대표자명", node: <input style={inp} value={resForm.repName} onChange={e => setResForm(p => ({...p, repName: e.target.value}))} /> },
             { label: "연락처", node: <input style={inp} value={resForm.phone} onChange={e => setResForm(p => ({...p, phone: e.target.value}))} /> },
             { label: "박수", node: <select style={inp} value={resForm.nights} onChange={e => setResForm(p => ({...p, nights: e.target.value}))}>{["1박2일","2박3일","3박4일"].map(v => <option key={v}>{v}</option>)}</select> },
-            { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => {
-              const t = parseInt(e.target.value);
-              const calcCnt = (tk) => { const oc = prod?.rooms[resForm[tk]]?.occ||4; return resForm[tk]&&resForm[tk]!=="NONE" ? t*(oc===4?1:2) : 0; };
-              setResForm(p => ({...p, teams: t,
-                rmCnt1: calcCnt("rmType"), rmCnt2: calcCnt("rmType2"),
-                rmCnt3: calcCnt("rmType3"), rmCnt4: calcCnt("rmType4")}));
-            }}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
+            { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
             { label: "객실 구성", node: (<div>
                 {[
                   {tk:"rmType",ck:"rmCnt1"},{tk:"rmType2",ck:"rmCnt2"},
@@ -879,12 +1010,7 @@ export default function DomesticGolf() {
           sbFetch("PATCH", "reservations?id=eq." + selRes.id, {
             dep_date: resForm.depDate, rep_name: resForm.repName, phone: resForm.phone,
             product_id: resForm.productId||"alpensia", nights: resForm.nights, combo: resForm.combo,
-            teams: resForm.teams, rm_type: resForm.rmType,
-            rm_cnt1: resForm.rmCnt1 || (prod?.rooms[resForm.rmType]?.occ===4 ? resForm.teams*1 : resForm.teams*2),
-            rm_type2: resForm.rmType2||"NONE", rm_cnt2: resForm.rmCnt2 || (resForm.rmType2&&resForm.rmType2!=="NONE" ? (prod?.rooms[resForm.rmType2]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
-            rm_type3: resForm.rmType3||"NONE", rm_cnt3: resForm.rmCnt3 || (resForm.rmType3&&resForm.rmType3!=="NONE" ? (prod?.rooms[resForm.rmType3]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
-            rm_type4: resForm.rmType4||"NONE", rm_cnt4: resForm.rmCnt4 || (resForm.rmType4&&resForm.rmType4!=="NONE" ? (prod?.rooms[resForm.rmType4]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
-            rm_ppl1: resForm.rmPpl1||0, rm_ppl2: resForm.rmPpl2||0, rm_ppl3: resForm.rmPpl3||0, rm_ppl4: resForm.rmPpl4||0,
+            teams: resForm.teams, rm_type: resForm.rmType, rm_cnt1: resForm.rmCnt1||1, rm_type2: resForm.rmType2||"NONE", rm_cnt2: resForm.rmCnt2||0, rm_type3: resForm.rmType3||"NONE", rm_cnt3: resForm.rmCnt3||0, rm_type4: resForm.rmType4||"NONE", rm_cnt4: resForm.rmCnt4||0, rm_ppl1: resForm.rmPpl1||0, rm_ppl2: resForm.rmPpl2||0, rm_ppl3: resForm.rmPpl3||0, rm_ppl4: resForm.rmPpl4||0,
             tee1: resForm.tee1||"", tee2: resForm.tee2||"", tee3: resForm.tee3||"", tee4: resForm.tee4||"",
             tee_sur1: resForm.teeSur1||0, tee_sur2: resForm.teeSur2||0, tee_sur3: resForm.teeSur3||0, tee_sur4: resForm.teeSur4||0,
             tee_type1: resForm.teeType1??1, tee_type2: resForm.teeType2??0, tee_type3: resForm.teeType3??0, tee_type4: resForm.teeType4??0,
@@ -923,13 +1049,7 @@ export default function DomesticGolf() {
             { label: "대표자명", node: <input style={inp} placeholder="홍길동님" value={resForm.repName} onChange={e => setResForm(p => ({...p, repName: e.target.value}))} /> },
             { label: "연락처", node: <input style={inp} placeholder="010-0000-0000" value={resForm.phone} onChange={e => setResForm(p => ({...p, phone: e.target.value}))} /> },
             { label: "박수", node: <select style={inp} value={resForm.nights} onChange={e => setResForm(p => ({...p, nights: e.target.value}))}>{["1박2일","2박3일","3박4일"].map(v => <option key={v}>{v}</option>)}</select> },
-            { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => {
-              const t = parseInt(e.target.value);
-              const calcCnt = (tk) => { const oc = prod?.rooms[resForm[tk]]?.occ||4; return resForm[tk]&&resForm[tk]!=="NONE" ? t*(oc===4?1:2) : 0; };
-              setResForm(p => ({...p, teams: t,
-                rmCnt1: calcCnt("rmType"), rmCnt2: calcCnt("rmType2"),
-                rmCnt3: calcCnt("rmType3"), rmCnt4: calcCnt("rmType4")}));
-            }}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
+            { label: "팀 수", node: <select style={inp} value={resForm.teams} onChange={e => setResForm(p => ({...p, teams: parseInt(e.target.value)}))}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v}팀 ({v*4}인)</option>)}</select> },
             { label: "객실 구성", node: (<div>
                 {[
                   {tk:"rmType",ck:"rmCnt1"},{tk:"rmType2",ck:"rmCnt2"},
@@ -1012,13 +1132,13 @@ export default function DomesticGolf() {
               combo: resForm.combo,
               teams: resForm.teams,
               rm_type: resForm.rmType,
-              rm_cnt1: resForm.rmCnt1 || (prod?.rooms[resForm.rmType]?.occ===4 ? resForm.teams*1 : resForm.teams*2),
+              rm_cnt1: resForm.rmCnt1||1,
               rm_type2: resForm.rmType2||"NONE",
-              rm_cnt2: resForm.rmCnt2 || (resForm.rmType2&&resForm.rmType2!=="NONE" ? (prod?.rooms[resForm.rmType2]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
+              rm_cnt2: resForm.rmCnt2||0,
               rm_type3: resForm.rmType3||"NONE",
-              rm_cnt3: resForm.rmCnt3 || (resForm.rmType3&&resForm.rmType3!=="NONE" ? (prod?.rooms[resForm.rmType3]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
+              rm_cnt3: resForm.rmCnt3||0,
               rm_type4: resForm.rmType4||"NONE",
-              rm_cnt4: resForm.rmCnt4 || (resForm.rmType4&&resForm.rmType4!=="NONE" ? (prod?.rooms[resForm.rmType4]?.occ===4 ? resForm.teams*1 : resForm.teams*2) : 0),
+              rm_cnt4: resForm.rmCnt4||0,
               rm_ppl1: resForm.rmPpl1||0,
               rm_ppl2: resForm.rmPpl2||0,
               rm_ppl3: resForm.rmPpl3||0,
@@ -1045,12 +1165,9 @@ export default function DomesticGolf() {
                 id: r.id, agtId: r.agt_id, depDate: r.dep_date, repName: r.rep_name,
                 phone: r.phone, productId: r.product_id, nights: r.nights,
                 combo: r.combo, teams: r.teams, rmType: r.rm_type,
-                rmCnt1: Number(r.rm_cnt1)||1,
                 rmType2: r.rm_type2||"NONE", rmCnt2: Number(r.rm_cnt2)||0,
                 rmType3: r.rm_type3||"NONE", rmCnt3: Number(r.rm_cnt3)||0,
                 rmType4: r.rm_type4||"NONE", rmCnt4: Number(r.rm_cnt4)||0,
-                rmPpl1: Number(r.rm_ppl1)||0, rmPpl2: Number(r.rm_ppl2)||0,
-                rmPpl3: Number(r.rm_ppl3)||0, rmPpl4: Number(r.rm_ppl4)||0,
                 tee1: r.tee1, tee2: r.tee2, tee3: r.tee3, tee4: r.tee4,
                 teeSur1: r.tee_sur1||0, teeSur2: r.tee_sur2||0, teeSur3: r.tee_sur3||0, teeSur4: r.tee_sur4||0,
                 teeType1: r.tee_type1??1, teeType2: r.tee_type2??0, teeType3: r.tee_type3??0, teeType4: r.tee_type4??0,
