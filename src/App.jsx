@@ -75,7 +75,7 @@ const G = {
 const HOLIDAY_DATES    = ["2026-05-01","2026-05-02","2026-05-03","2026-05-23","2026-05-24"];
 const HOLIDAY_EVE      = ["2026-04-30","2026-05-22"];
 // 그린피 일요일 요금 적용 특별 날짜 (요일 무관)
-const SUNDAY_RATE_DATES = ["2026-05-01","2026-05-05","2026-05-25"];
+const SUNDAY_RATE_DATES = ["2026-05-01","2026-05-05","2026-05-25","2026-06-03"];
 // 날짜 더하기 (timezone 문제 없는 로컬 계산)
 const addDays = (ds, n) => {
   const d = new Date(ds + "T12:00:00");
@@ -101,26 +101,28 @@ const AGTS = [
 const DEF = {
   alpensia: {
     name: "알펜시아 골프패키지", sub: "",
-    seasons: { s1: "오픈~4/09", s2: "4/10~4/30", s3: "5/01~5/31" }, seasonCut: "2026-04-10", seasonCut2: "2026-05-01",
+    seasons: { s1: "오픈~4/09", s2: "4/10~4/30", s3: "5/01~5/31", s4: "6/01~6/30" }, seasonCut: "2026-04-10", seasonCut2: "2026-05-01", seasonCut3: "2026-06-01",
     courseNames: { pub: "700GC (대중제)", prv: "알펜시아CC (회원제)" },
     courses: {
       pub: {
         s1: { weekday: [50000, 60000], friday: [70000, 80000], saturday: [110000, 130000], sunday: [110000, 100000] },
         s2: { weekday: [60000, 70000], friday: [80000, 90000], saturday: [130000, 150000], sunday: [130000, 120000] },
         s3: { weekday: [80000, 80000], friday: [100000, 130000], saturday: [150000, 170000], sunday: [150000, 130000] },
+        s4: { weekday: [80000, 90000], friday: [100000, 130000], saturday: [150000, 170000], sunday: [150000, 130000] },
       },
       prv: {
         s1: { weekday: [70000, 80000], friday: [80000, 90000], saturday: [130000, 140000], sunday: [130000, 120000] },
         s2: { weekday: [80000, 90000], friday: [100000, 110000], saturday: [150000, 160000], sunday: [150000, 130000] },
         s3: { weekday: [90000, 90000], friday: [110000, 140000], saturday: [160000, 180000], sunday: [160000, 140000] },
+        s4: { weekday: [90000, 100000], friday: [110000, 140000], saturday: [160000, 180000], sunday: [160000, 140000] },
       },
     },
     rooms: {
-      IC:    { s1: [100000, 140000, 140000], s2: [110000, 150000, 150000], s3: [120000, 160000, 190000], holiday: [220000, 230000, 240000], occ: 2 },
-      HIR:   { s1: [80000,  100000, 100000], s2: [80000,  100000, 100000], s3: [100000, 120000, 150000], holiday: [200000, 210000, 220000], occ: 2 },
-      HIS33: { s1: [80000,  140000, 140000], s2: [100000, 160000, 160000], s3: [140000, 190000, 240000], holiday: [240000, 270000, 300000], occ: 4 },
+      IC:    { s1: [100000, 140000, 140000], s2: [110000, 150000, 150000], s3: [120000, 160000, 190000], s4: [120000, 160000, 200000], holiday: [220000, 230000, 240000], occ: 2 },
+      HIR:   { s1: [80000,  100000, 100000], s2: [80000,  100000, 100000], s3: [100000, 120000, 150000], s4: [100000, 120000, 160000], holiday: [200000, 210000, 220000], occ: 2 },
+      HIS33: { s1: [80000,  140000, 140000], s2: [100000, 160000, 160000], s3: [140000, 190000, 240000], s4: [140000, 190000, 250000], holiday: [240000, 270000, 300000], occ: 4 },
     },
-    breakfast: { s1: 20000, s2: 20000, s3: 15000 }, surcharge: 20000,
+    breakfast: { s1: 20000, s2: 20000, s3: 15000, s4: 15000 }, surcharge: 20000,
     courseIntro: {
       pub: "평창 알펜시아 700 G.C는 세계 명문 골프코스의 홀을 체험할 수 있게 만든 신개념의 레플리카 골프 코스(Replica Golf Course)로 구성되어 있습니다.|18홀 72par 6,659yard",
       prv: "전 세계에 200개 이상의 골프코스를 설계 및 개조를 한 세계적인 골프코스 설계자인 Robert Trent Jones, Jr. 가 대관령의 자연과 코스 주변의 아름다움을 그의 코스 디자인 도면에 조화롭게 그려낸 알펜시아 ALPENSIA Country Club은 또 하나의 세계적인 명품 골프코스로 평가되고 있습니다.|27홀 108par 9,905yard",
@@ -319,8 +321,13 @@ export default function DomesticGolf() {
     setRoundTees(DEFAULT_TEE.slice(0, pkg?.rounds || 2));
   };
 
-  const season = ds => (!ds || ds < (prod?.seasonCut || "")) ? "s1" : ds < (prod?.seasonCut2 || "2026-05-01") ? "s2" : "s3";
-  const dv = date && date <= "2026-05-31";
+  const season = ds => {
+    if (!ds || ds < (prod?.seasonCut || "")) return "s1";
+    if (ds < (prod?.seasonCut2 || "2026-05-01")) return "s2";
+    if (ds < (prod?.seasonCut3 || "2026-06-01")) return "s3";
+    return "s4";
+  };
+  const dv = date && date <= "2026-06-30";
 
   // 객실 요금 조회 (연휴/연휴전일 처리 포함)
   const getRmRate = (rmD2, ds) => {
@@ -360,6 +367,7 @@ export default function DomesticGolf() {
               breakfast: DEF[k]?.breakfast ?? v.breakfast,
               seasonCut: DEF[k]?.seasonCut ?? v.seasonCut,
               seasonCut2: DEF[k]?.seasonCut2 ?? v.seasonCut2,
+              seasonCut3: DEF[k]?.seasonCut3 ?? v.seasonCut3,
               seasons: DEF[k]?.seasons ?? v.seasons,
               surcharge: DEF[k]?.surcharge ?? v.surcharge,
               sub: (DEF[k]?.sub !== undefined) ? DEF[k].sub : (v.sub || ""),
@@ -1403,7 +1411,7 @@ export default function DomesticGolf() {
               })}
             </div>
           )}
-          {date && !dv && <div style={{ marginTop: "10px", padding: "10px", background: "#fdecea", borderRadius: "8px", fontSize: "13px", color: "#c0392b", fontWeight: "700" }}>⚠️ 요금표는 5/31까지 적용됩니다.</div>}
+          {date && !dv && <div style={{ marginTop: "10px", padding: "10px", background: "#fdecea", borderRadius: "8px", fontSize: "13px", color: "#c0392b", fontWeight: "700" }}>⚠️ 요금표는 6/30까지 적용됩니다.</div>}
         </div>
 
         {/* 라운드별 코스 + 티타임 선택 */}
@@ -1891,8 +1899,10 @@ export default function DomesticGolf() {
             <div><label style={lbl}>시즌1</label><input style={inp} value={p.seasons.s1} onChange={e => upProd("seasons", { ...p.seasons, s1: e.target.value })} /></div>
             <div><label style={lbl}>시즌2</label><input style={inp} value={p.seasons.s2} onChange={e => upProd("seasons", { ...p.seasons, s2: e.target.value })} /></div>
             <div><label style={lbl}>시즌3</label><input style={inp} value={p.seasons.s3 || ""} onChange={e => upProd("seasons", { ...p.seasons, s3: e.target.value })} /></div>
+            <div><label style={lbl}>시즌4</label><input style={inp} value={p.seasons.s4 || ""} onChange={e => upProd("seasons", { ...p.seasons, s4: e.target.value })} /></div>
             <div><label style={lbl}>시즌1→2 구분일</label><input type="date" style={inp} value={p.seasonCut} onChange={e => upProd("seasonCut", e.target.value)} /></div>
             <div><label style={lbl}>시즌2→3 구분일</label><input type="date" style={inp} value={p.seasonCut2 || ""} onChange={e => upProd("seasonCut2", e.target.value)} /></div>
+            <div><label style={lbl}>시즌3→4 구분일</label><input type="date" style={inp} value={p.seasonCut3 || ""} onChange={e => upProd("seasonCut3", e.target.value)} /></div>
             <div><label style={lbl}>조식 (1인)</label><input type="number" style={inp} value={p.breakfast} onChange={e => upProd("breakfast", parseInt(e.target.value) || 0)} /></div>
             <div><label style={lbl}>2부+2부 추가금</label><input type="number" style={inp} value={p.surcharge} onChange={e => upProd("surcharge", parseInt(e.target.value) || 0)} /></div>
           </div>
@@ -1926,9 +1936,9 @@ export default function DomesticGolf() {
               <div style={{ fontSize: "13px", fontWeight: "700", marginBottom: "8px" }}>{rmLabel(rN)} ({rN})</div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                 <thead><tr style={{ background: "#f0f0f0" }}><th style={{ padding: "6px 8px", textAlign: "left" }}>시즌</th><th style={{ padding: "6px 8px", textAlign: "right" }}>주중</th><th style={{ padding: "6px 8px", textAlign: "right" }}>금요일</th><th style={{ padding: "6px 8px", textAlign: "right" }}>토요일</th></tr></thead>
-                <tbody>{["s1", "s2", "s3"].map(sn => (
+                <tbody>{["s1", "s2", "s3", "s4"].map(sn => (
                   <tr key={sn}>
-                    <td style={{ padding: "4px 8px", fontWeight: "600" }}>{sn === "s1" ? "시즌1" : sn === "s2" ? "시즌2" : "시즌3"}</td>
+                    <td style={{ padding: "4px 8px", fontWeight: "600" }}>{sn === "s1" ? "시즌1" : sn === "s2" ? "시즌2" : sn === "s3" ? "시즌3" : "시즌4"}</td>
                     <td style={{ padding: "4px 8px" }}><input type="number" style={{ ...inp, textAlign: "right", padding: "6px 8px" }} value={rD[sn]?.[0] || 0} onChange={e => upRoom(rN, sn, 0, e.target.value)} /></td>
                     <td style={{ padding: "4px 8px" }}><input type="number" style={{ ...inp, textAlign: "right", padding: "6px 8px" }} value={rD[sn]?.[1] || 0} onChange={e => upRoom(rN, sn, 1, e.target.value)} /></td>
                     <td style={{ padding: "4px 8px" }}><input type="number" style={{ ...inp, textAlign: "right", padding: "6px 8px" }} value={rD[sn]?.[2] || 0} onChange={e => upRoom(rN, sn, 2, e.target.value)} /></td>
