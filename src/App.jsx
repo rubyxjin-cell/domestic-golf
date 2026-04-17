@@ -34,6 +34,57 @@ const loadH2C = () => new Promise((res, rej) => {
   document.head.appendChild(s);
 });
 
+// ExcelJS 동적 로드 (CDN)
+const loadExcelJS = () => new Promise((res, rej) => {
+  if (window.ExcelJS) { res(window.ExcelJS); return; }
+  const s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+  s.onload = () => {
+    const check = () => {
+      if (window.ExcelJS) res(window.ExcelJS);
+      else setTimeout(check, 100);
+    };
+    check();
+  };
+  s.onerror = () => rej(new Error("ExcelJS 로드 실패"));
+  document.head.appendChild(s);
+});
+
+// ============================================================
+// 팩스 신청서 설정
+// ============================================================
+const FAX_CONFIG = {
+  // 팩스 수신번호 (우선 테스트용 모바일팩스. 확정되면 알펜시아 02-573-7376으로 교체)
+  faxNumber: "0504-088-5293",
+  // 팩스 발송 로컬 서버
+  localServer: "http://127.0.0.1:4321",
+  // 템플릿 파일 위치 (public 폴더)
+  templateUrl: "/alpensia_template.xlsx",
+  // 여행사 기본 정보
+  agency: { name: "초이스골프", manager: "최진우", fax: "02-545-9981" },
+};
+
+// 골프장 코드 → 신청서 표기 변환
+const courseKeyToLabel = (key) => key === "prv" ? "알펜시아" : "700";
+// 객실 코드 → 신청서 표기 변환 (C20), 평형 표기 (D20)
+const roomTypeToLabels = (rmType) => {
+  const map = {
+    IC:    { place: "인터", size: "트윈" },
+    HIR:   { place: "호텔", size: "트윈" },
+    HIS33: { place: "콘도", size: "33평형" },
+  };
+  return map[rmType] || { place: rmType, size: "" };
+};
+// 요일 (일~토 → 한글 1자)
+const dayKor = (ds) => "일월화수목금토"[new Date(ds + "T00:00:00").getDay()];
+
+// 2026-04-20 → Excel serial date
+const toExcelSerial = (ds) => {
+  const d = new Date(ds + "T00:00:00");
+  // Excel은 1900-01-01 = 1 (leap year 버그 포함)
+  return Math.round((d.getTime() - new Date("1899-12-30T00:00:00").getTime()) / 86400000);
+};
+
 const PW = "0090";
 const RL = { IC: "인터컨티넨탈 호텔", HIR: "홀리데이인 호텔", HIS33: "홀리데이인 스위트 콘도 33평형", NONE: "호텔 없음 (골프만)" };
 const rmLabel = k => RL[k] || k;
@@ -535,7 +586,168 @@ export default function DomesticGolf() {
 
     return { gf1, gf2, gfList, gfTotal, rmPP: rmPP2, rmGroupsData, bfPP: bfPP2, bfNights: bfNights2,
              costPP: costPP2, sellPP: costPP2, totalAgt, ppl: ppl2, gfPpl: gfPpl2, bfPpl: bfPpl2,
-             cn1, cn2, teeSur1: r.teeSur1||0, teeSur2: r.teeSur2||0, numRounds, numNights, noHotel: noHotel2 };
+             cn1, cn2, teeSur1: r.teeSur1||0, teeSur2: r.teeSur2||0, numRounds, numNights, noHotel: noHotel2,
+             courseArr: getCoursesFromCombo(r.combo, numRounds) };
+  };
+
+  // ================================================================
+  // 팩스 신청서 워크북 생성 (템플릿 기반 - 서식 100% 유지)
+  // ================================================================
+  const buildFaxWorkbook = async (r, inv) => {
+    const ExcelJS = await loadExcelJS();
+    const resp = await fetch(FAX_CONFIG.templateUrl);
+    if (!resp.ok) throw new Error("템플릿 파일 로드 실패: " + FAX_CONFIG.templateUrl);
+    const buf = await resp.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    const ws = wb.getWorksheet("예약신청서") || wb.worksheets[0];
+
+    const setV = (addr, v) => { ws.getCell(addr).value = v; };
+
+    // 공유수식 셀 초기화 (템플릿의 수식 충돌 방지)
+    ["K13","K14","J21","J22"].forEach(a => setV(a, 0));
+
+    // 여행사 + 신청일
+    setV("B5", FAX_CONFIG.agency.name);
+    setV("B6", FAX_CONFIG.agency.manager);
+    setV("G6", FAX_CONFIG.agency.fax);
+    const today = new Date();
+    setV("H5", today.getMonth() + 1);
+    setV("J5", today.getDate());
+
+    // 예약자 정보
+    setV("B7", r.repName || "");
+    setV("G7", r.phone || "");
+
+    // 골프 예약 (최대 4라운드, 행 11~14)
+    const ppl = r.teams * 4;
+    const roundRows = [11, 12, 13, 14];
+    for (let i = 0; i < inv.gfList.length && i < 4; i++) {
+      const g = inv.gfList[i];
+      const row = roundRows[i];
+      const courseLabel = courseKeyToLabel(inv.courseArr[i] || "prv");
+      setV("A" + row, toExcelSerial(g.ds));
+      setV("B" + row, dayKor(g.ds));
+      setV("C" + row, courseLabel);
+      setV("D" + row, r.teams);
+      setV("E" + row, ppl);
+      setV("F" + row, g.teeIdx === 0 ? "1부" : "2부");
+      setV("H" + row, g.gf);
+      // 조식 (오전 라운딩에만 표기, J열=1인 조식비)
+      if (g.teeIdx === 0 && i > 0 && inv.bfPP > 0 && inv.bfNights > 0) {
+        // 조식 단가 (1박 기준)
+        const bfUnit = inv.bfPP / inv.bfNights;
+        setV("J" + row, Math.round(bfUnit));
+        setV("K" + row, ppl * (g.gf + Math.round(bfUnit)));
+      } else {
+        setV("K" + row, ppl * g.gf);
+      }
+    }
+
+    // 골프 총 금액 (J15)
+    const golfTotal = inv.gfList.reduce((s, g, i) => {
+      const base = ppl * g.gf;
+      const bfAdd = (g.teeIdx === 0 && i > 0 && inv.bfPP > 0 && inv.bfNights > 0)
+        ? ppl * Math.round(inv.bfPP / inv.bfNights) : 0;
+      return s + base + bfAdd;
+    }, 0);
+    setV("J15", golfTotal);
+
+    // 객실 예약 (행 20~22)
+    const rmRows = [20, 21, 22];
+    const rmGroups = inv.rmGroupsData || [];
+    let roomTotal = 0;
+    for (let i = 0; i < rmGroups.length && i < 3; i++) {
+      const g = rmGroups[i];
+      const row = rmRows[i];
+      const { place, size } = roomTypeToLabels(g.type);
+      setV("A" + row, toExcelSerial(r.depDate));
+      setV("B" + row, dayKor(r.depDate));
+      setV("C" + row, place);
+      setV("D" + row, size);
+      setV("F" + row, g.cnt);
+      // 1실 요금 (1인 요금 × 그룹 인원 / 실수 = 실당 요금)
+      const perRoom = Math.round((g.rmPP * g.groupPpl) / g.cnt);
+      setV("G" + row, perRoom);
+      const sub = perRoom * g.cnt * (inv.numNights || 1);
+      setV("J" + row, sub);
+      roomTotal += sub;
+    }
+    setV("J23", roomTotal);
+
+    // 총 합계
+    setV("J26", golfTotal + roomTotal);
+
+    return wb;
+  };
+
+  // 파일명 생성: "YYMMDD 대표자 신청서.xlsx"
+  const buildFaxFilename = (r) => {
+    const d = new Date(r.depDate + "T00:00:00");
+    const yymmdd = String(d.getFullYear()).slice(2) + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
+    return `${yymmdd} ${r.repName || "고객"} 신청서.xlsx`;
+  };
+
+  // 📥 신청서 xlsx 다운로드
+  const downloadFaxXlsx = async () => {
+    try {
+      const r = selRes;
+      const inv = calcForRes(r);
+      if (!r || !inv) { alert("예약 정보를 불러올 수 없습니다."); return; }
+      const wb = await buildFaxWorkbook(r, inv);
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = buildFaxFilename(r);
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("다운로드 오류: " + e.message);
+    }
+  };
+
+  // 📠 팩스 자동발송 (로컬 서버 경유)
+  const sendFaxNow = async () => {
+    try {
+      const r = selRes;
+      const inv = calcForRes(r);
+      if (!r || !inv) { alert("예약 정보를 불러올 수 없습니다."); return; }
+
+      // 서버 ping 확인
+      let alive = false;
+      try {
+        const pong = await fetch(FAX_CONFIG.localServer + "/ping");
+        alive = pong.ok;
+      } catch {}
+      if (!alive) {
+        alert("❌ 팩스 서버가 꺼져 있습니다.\n\n[fax-tools\\start-fax-server.bat]을 실행해주세요.");
+        return;
+      }
+
+      if (!window.confirm(`📠 팩스를 발송합니다.\n\n수신: ${FAX_CONFIG.faxNumber}\n예약: ${r.repName} / ${r.depDate}\n\n계속하시겠습니까?`)) return;
+
+      // 워크북 생성 → base64
+      const wb = await buildFaxWorkbook(r, inv);
+      const buf = await wb.xlsx.writeBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const filename = buildFaxFilename(r);
+
+      const resp = await fetch(FAX_CONFIG.localServer + "/send-fax", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ xlsx_base64: base64, fax_number: FAX_CONFIG.faxNumber, filename }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        alert(`✅ 팩스 발송 요청 완료\n\n파일: ${data.file}\n수신: ${data.fax}`);
+      } else {
+        alert(`⚠️ 발송 실패\n\n${data.stderr || data.error || "알 수 없는 오류"}`);
+      }
+    } catch (e) {
+      alert("팩스 발송 오류: " + e.message);
+    }
   };
 
   const COMBO_LABEL = {
@@ -623,6 +835,8 @@ export default function DomesticGolf() {
               시간추가금
             </label>
             <button onClick={doAgtDownload} style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "8px", border: "none", background: "#d32f2f", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📸 JPG 저장</button>
+            <button onClick={downloadFaxXlsx} style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid " + G.primary, background: "#fff", color: G.primary, fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>📥 신청서 xlsx</button>
+            <button onClick={sendFaxNow} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: "#2e7d52", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📠 팩스발송</button>
             {(selRes?.resType||"confirmed") === "tentative" && (
               <button onClick={() => {
                 if (!window.confirm("확정예약으로 변경하시겠습니까?")) return;
