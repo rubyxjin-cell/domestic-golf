@@ -622,16 +622,21 @@ export default function DomesticGolf() {
     // 골프 예약 (최대 4라운드, 행 11~14)
     const ppl = r.teams * 4;
     const roundRows = [11, 12, 13, 14];
+    const teeTimes = [r.tee1, r.tee2, r.tee3, r.tee4];
     for (let i = 0; i < inv.gfList.length && i < 4; i++) {
       const g = inv.gfList[i];
       const row = roundRows[i];
       const courseLabel = courseKeyToLabel(inv.courseArr[i] || "prv");
+      const partLabel = g.teeIdx === 0 ? "1부" : "2부";
+      const teeTime = teeTimes[i] || "";
+      // 홀딩시간 = "1부 13:27" 또는 "2부 (시간 없으면)"
+      const holdingLabel = teeTime ? `${partLabel} ${teeTime}` : partLabel;
       setV("A" + row, toExcelSerial(g.ds));
       setV("B" + row, dayKor(g.ds));
       setV("C" + row, courseLabel);
       setV("D" + row, r.teams);
       setV("E" + row, ppl);
-      setV("F" + row, g.teeIdx === 0 ? "1부" : "2부");
+      setV("F" + row, holdingLabel);
       setV("H" + row, g.gf);
       // 조식 (오전 라운딩에만 표기, J열=1인 조식비)
       if (g.teeIdx === 0 && i > 0 && inv.bfPP > 0 && inv.bfNights > 0) {
