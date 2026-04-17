@@ -127,7 +127,9 @@ async function sendSolapiFax(fileId, toNumber) {
         type: "FAX",
         text: "알펜시아 예약신청서 (초이스골프)",
         subject: "알펜시아 예약신청서",
-        fileIds: [fileId],
+        faxOptions: {
+          fileIds: [fileId],
+        },
       },
     }),
   });
