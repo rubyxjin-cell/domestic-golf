@@ -728,10 +728,16 @@ export default function DomesticGolf() {
 
       if (!window.confirm(`📠 팩스를 발송합니다.\n\n수신: ${FAX_CONFIG.faxNumber}\n예약: ${r.repName} / ${r.depDate}\n\n계속하시겠습니까?`)) return;
 
-      // 워크북 생성 → base64
+      // 워크북 생성 → base64 (대용량 대응: FileReader 사용)
       const wb = await buildFaxWorkbook(r, inv);
       const buf = await wb.xlsx.writeBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const blob = new Blob([buf]);
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1]);
+        reader.onerror = () => reject(new Error("base64 변환 실패"));
+        reader.readAsDataURL(blob);
+      });
       const filename = buildFaxFilename(r);
 
       const resp = await fetch(FAX_CONFIG.localServer + "/send-fax", {
