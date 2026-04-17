@@ -88,39 +88,21 @@ async function convertXlsxToPdf(xlsxBase64, filename) {
 }
 
 // ======================================================
-// Solapi: 파일 업로드 (multipart/form-data)
+// Solapi: 파일 업로드 (JSON + base64)
 // ======================================================
 async function uploadToSolapi(fileBuffer, filename) {
-  const boundary = "----SolapiBoundary" + Date.now();
-  const bodyParts = [];
-
-  // file 파트
-  bodyParts.push(Buffer.from(
-    `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
-    `Content-Type: application/pdf\r\n\r\n`
-  ));
-  bodyParts.push(fileBuffer);
-  bodyParts.push(Buffer.from(`\r\n`));
-
-  // type 파트
-  bodyParts.push(Buffer.from(
-    `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="type"\r\n\r\n` +
-    `FAX\r\n`
-  ));
-  bodyParts.push(Buffer.from(`--${boundary}--\r\n`));
-
-  const body = Buffer.concat(bodyParts);
-
+  const base64 = fileBuffer.toString("base64");
   const res = await fetch("https://api.solapi.com/storage/v1/files", {
     method: "POST",
     headers: {
       Authorization: solapiAuthHeader(),
-      "Content-Type": "multipart/form-data; boundary=" + boundary,
-      "Content-Length": body.length.toString(),
+      "Content-Type": "application/json",
     },
-    body: body,
+    body: JSON.stringify({
+      file: base64,
+      type: "FAX",
+      name: filename,
+    }),
   });
   const text = await res.text();
   if (!res.ok) throw new Error("Solapi 업로드 실패: " + text);
