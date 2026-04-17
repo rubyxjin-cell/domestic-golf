@@ -2,6 +2,8 @@
 // Vercel API Route: /api/send-fax
 // xlsx → PDF (CloudConvert) → Solapi 팩스 발송
 // ============================================================
+import crypto from "crypto";
+
 export const maxDuration = 60; // Vercel Hobby: 최대 60초
 
 const SOLAPI_API_KEY = process.env.SOLAPI_API_KEY;
@@ -9,67 +11,9 @@ const SOLAPI_API_SECRET = process.env.SOLAPI_API_SECRET;
 const SOLAPI_SENDER = process.env.SOLAPI_SENDER;
 const CLOUDCONVERT_API_KEY = process.env.CLOUDCONVERT_API_KEY;
 
-export default async function handler(req, res) {
-  // CORS (같은 도메인이면 불필요하지만 안전장치)
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") { res.status(204).end(); return; }
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "POST only" });
-  }
-
-  // 환경변수 체크
-  const missing = [];
-  if (!SOLAPI_API_KEY) missing.push("SOLAPI_API_KEY");
-  if (!SOLAPI_API_SECRET) missing.push("SOLAPI_API_SECRET");
-  if (!SOLAPI_SENDER) missing.push("SOLAPI_SENDER");
-  if (!CLOUDCONVERT_API_KEY) missing.push("CLOUDCONVERT_API_KEY");
-  if (missing.length) {
-    return res.status(500).json({ ok: false, error: "환경변수 누락: " + missing.join(", ") });
-  }
-
-  try {
-    const { xlsx_base64, fax_number, filename } = req.body || {};
-    if (!xlsx_base64 || !fax_number) {
-      return res.status(400).json({ ok: false, error: "xlsx_base64, fax_number 필수" });
-    }
-
-    const cleanFax = String(fax_number).replace(/\D/g, "");
-    const safeName = (filename || "fax").replace(/[\\/:*?"<>|]/g, "_");
-
-    console.log("[fax] start:", safeName, "→", cleanFax);
-
-    // 1) CloudConvert: xlsx → PDF
-    const pdfBuffer = await convertXlsxToPdf(xlsx_base64, safeName);
-    console.log("[fax] pdf size:", pdfBuffer.length);
-
-    // 2) Solapi: PDF 업로드
-    const fileId = await uploadToSolapi(pdfBuffer, safeName.replace(/\.xlsx$/i, ".pdf"));
-    console.log("[fax] solapi fileId:", fileId);
-
-    // 3) Solapi: 팩스 발송
-    const result = await sendSolapiFax(fileId, cleanFax);
-    console.log("[fax] sent:", result);
-
-    return res.status(200).json({
-      ok: true,
-      fileId,
-      to: cleanFax,
-      result,
-    });
-  } catch (e) {
-    console.error("[fax] error:", e);
-    return res.status(500).json({ ok: false, error: e.message || String(e) });
-  }
-}
-
 // ======================================================
 // HMAC-SHA256 서명 생성 (Solapi 인증)
 // ======================================================
-import crypto from "crypto";
-
 function solapiAuthHeader() {
   const date = new Date().toISOString();
   const salt = crypto.randomBytes(16).toString("hex");
@@ -207,4 +151,63 @@ async function sendSolapiFax(fileId, toNumber) {
   const text = await res.text();
   if (!res.ok) throw new Error("Solapi 발송 실패: " + text);
   return JSON.parse(text);
+}
+
+// ======================================================
+// Vercel Handler
+// ======================================================
+export default async function handler(req, res) {
+  // CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") { res.status(204).end(); return; }
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "POST only" });
+  }
+
+  // 환경변수 체크
+  const missing = [];
+  if (!SOLAPI_API_KEY) missing.push("SOLAPI_API_KEY");
+  if (!SOLAPI_API_SECRET) missing.push("SOLAPI_API_SECRET");
+  if (!SOLAPI_SENDER) missing.push("SOLAPI_SENDER");
+  if (!CLOUDCONVERT_API_KEY) missing.push("CLOUDCONVERT_API_KEY");
+  if (missing.length) {
+    return res.status(500).json({ ok: false, error: "환경변수 누락: " + missing.join(", ") });
+  }
+
+  try {
+    const { xlsx_base64, fax_number, filename } = req.body || {};
+    if (!xlsx_base64 || !fax_number) {
+      return res.status(400).json({ ok: false, error: "xlsx_base64, fax_number 필수" });
+    }
+
+    const cleanFax = String(fax_number).replace(/\D/g, "");
+    const safeName = (filename || "fax").replace(/[\\/:*?"<>|]/g, "_");
+
+    console.log("[fax] start:", safeName, "→", cleanFax);
+
+    // 1) CloudConvert: xlsx → PDF
+    const pdfBuffer = await convertXlsxToPdf(xlsx_base64, safeName);
+    console.log("[fax] pdf size:", pdfBuffer.length);
+
+    // 2) Solapi: PDF 업로드
+    const fileId = await uploadToSolapi(pdfBuffer, safeName.replace(/\.xlsx$/i, ".pdf"));
+    console.log("[fax] solapi fileId:", fileId);
+
+    // 3) Solapi: 팩스 발송
+    const result = await sendSolapiFax(fileId, cleanFax);
+    console.log("[fax] sent:", result);
+
+    return res.status(200).json({
+      ok: true,
+      fileId,
+      to: cleanFax,
+      result,
+    });
+  } catch (e) {
+    console.error("[fax] error:", e);
+    return res.status(500).json({ ok: false, error: e.message || String(e) });
+  }
 }
