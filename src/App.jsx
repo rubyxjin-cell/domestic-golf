@@ -56,8 +56,8 @@ const loadExcelJS = () => new Promise((res, rej) => {
 const FAX_CONFIG = {
   // 팩스 수신번호 (우선 테스트용 모바일팩스. 확정되면 알펜시아 02-573-7376으로 교체)
   faxNumber: "0504-088-5293",
-  // 팩스 발송 로컬 서버
-  localServer: "http://127.0.0.1:4321",
+  // Vercel API 경로 (클라우드 기반 자동 발송)
+  apiUrl: "/api/send-fax",
   // 템플릿 파일 위치 (public 폴더)
   templateUrl: "/alpensia_template.xlsx",
   // 여행사 기본 정보
@@ -708,50 +708,54 @@ export default function DomesticGolf() {
     }
   };
 
-  // 📠 팩스 자동발송 (로컬 서버 경유)
+  // 📠 팩스 자동발송 (Vercel API → CloudConvert → Solapi)
   const sendFaxNow = async () => {
     try {
       const r = selRes;
       const inv = calcForRes(r);
       if (!r || !inv) { alert("예약 정보를 불러올 수 없습니다."); return; }
 
-      // 서버 ping 확인
-      let alive = false;
-      try {
-        const pong = await fetch(FAX_CONFIG.localServer + "/ping");
-        alive = pong.ok;
-      } catch {}
-      if (!alive) {
-        alert("❌ 팩스 서버가 꺼져 있습니다.\n\n[fax-tools\\start-fax-server.bat]을 실행해주세요.");
-        return;
-      }
-
       if (!window.confirm(`📠 팩스를 발송합니다.\n\n수신: ${FAX_CONFIG.faxNumber}\n예약: ${r.repName} / ${r.depDate}\n\n계속하시겠습니까?`)) return;
 
-      // 워크북 생성 → base64 (대용량 대응: FileReader 사용)
-      const wb = await buildFaxWorkbook(r, inv);
-      const buf = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buf]);
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(",")[1]);
-        reader.onerror = () => reject(new Error("base64 변환 실패"));
-        reader.readAsDataURL(blob);
-      });
-      const filename = buildFaxFilename(r);
+      // 로딩 표시
+      const loadingMsg = "📠 팩스 발송 중입니다...\n엑셀 생성 → PDF 변환 → 전송 (30~50초 소요)\n\n잠시 기다려주세요!";
+      const loading = document.createElement("div");
+      loading.id = "fax-loading";
+      loading.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;white-space:pre-line;text-align:center;padding:20px;";
+      loading.textContent = loadingMsg;
+      document.body.appendChild(loading);
 
-      const resp = await fetch(FAX_CONFIG.localServer + "/send-fax", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ xlsx_base64: base64, fax_number: FAX_CONFIG.faxNumber, filename }),
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        alert(`✅ 팩스 발송 요청 완료\n\n파일: ${data.file}\n수신: ${data.fax}`);
-      } else {
-        alert(`⚠️ 발송 실패\n\n${data.stderr || data.error || "알 수 없는 오류"}`);
+      try {
+        // 워크북 생성 → base64 (대용량 대응: FileReader 사용)
+        const wb = await buildFaxWorkbook(r, inv);
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf]);
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).split(",")[1]);
+          reader.onerror = () => reject(new Error("base64 변환 실패"));
+          reader.readAsDataURL(blob);
+        });
+        const filename = buildFaxFilename(r);
+
+        const resp = await fetch(FAX_CONFIG.apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ xlsx_base64: base64, fax_number: FAX_CONFIG.faxNumber, filename }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          alert(`✅ 팩스 발송 완료\n\n수신: ${data.to}\nFile ID: ${data.fileId}`);
+        } else {
+          alert(`⚠️ 발송 실패\n\n${data.error || "알 수 없는 오류"}`);
+        }
+      } finally {
+        const el = document.getElementById("fax-loading");
+        if (el) el.remove();
       }
     } catch (e) {
+      const el = document.getElementById("fax-loading");
+      if (el) el.remove();
       alert("팩스 발송 오류: " + e.message);
     }
   };
