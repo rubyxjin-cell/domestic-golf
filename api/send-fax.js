@@ -126,6 +126,7 @@ async function sendSolapiFax(fileId, toNumber) {
         from: SOLAPI_SENDER,
         type: "FAX",
         imageId: fileId,
+        text: "알펜시아 예약신청서 (초이스골프)",
         subject: "알펜시아 예약신청서",
       },
     }),
