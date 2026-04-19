@@ -479,6 +479,10 @@ export default function DomesticGolf() {
           teeSur1: r.tee_sur1 || 0, teeSur2: r.tee_sur2 || 0, teeSur3: r.tee_sur3 || 0, teeSur4: r.tee_sur4 || 0,
           teeType1: r.tee_type1 ?? 1, teeType2: r.tee_type2 ?? 0, teeType3: r.tee_type3 ?? 0, teeType4: r.tee_type4 ?? 0,
           bfIncluded: r.bf_included !== false,
+          bfDay1: r.bf_day1 ?? undefined,
+          bfDay2: r.bf_day2 ?? undefined,
+          bfDay3: r.bf_day3 ?? undefined,
+          bfDay4: r.bf_day4 ?? undefined,
           gfPpl: Number(r.gf_ppl) || 0, bfPpl: Number(r.bf_ppl) || 0,
           memo: r.memo, createdAt: r.created_at,
           resType: r.res_type || "confirmed",
@@ -623,14 +627,19 @@ export default function DomesticGolf() {
     const ppl = r.teams * 4;
     const roundRows = [11, 12, 13, 14];
     const teeTimes = [r.tee1, r.tee2, r.tee3, r.tee4];
+    const bfDays = [r.bfDay1, r.bfDay2, r.bfDay3, r.bfDay4];
+    // 1박당 조식 단가 계산
+    const bfUnit = (inv.bfNights > 0 && inv.bfPP > 0) ? Math.round(inv.bfPP / inv.bfNights) : 0;
     for (let i = 0; i < inv.gfList.length && i < 4; i++) {
       const g = inv.gfList[i];
       const row = roundRows[i];
       const courseLabel = courseKeyToLabel(inv.courseArr[i] || "prv");
       const partLabel = g.teeIdx === 0 ? "1부" : "2부";
       const teeTime = teeTimes[i] || "";
-      // 홀딩시간 = "1부 13:27" 또는 "2부 (시간 없으면)"
       const holdingLabel = teeTime ? `${partLabel} ${teeTime}` : partLabel;
+      // 조식 포함 여부: 일차별 설정 우선, 없으면 자동 (1부 AND i>0 AND bfIncluded)
+      const autoBf = g.teeIdx === 0 && i > 0 && r.bfIncluded !== false;
+      const hasBf = bfDays[i] !== undefined && bfDays[i] !== null ? !!bfDays[i] : autoBf;
       setV("A" + row, toExcelSerial(g.ds));
       setV("B" + row, dayKor(g.ds));
       setV("C" + row, courseLabel);
@@ -638,12 +647,9 @@ export default function DomesticGolf() {
       setV("E" + row, ppl);
       setV("F" + row, holdingLabel);
       setV("H" + row, g.gf);
-      // 조식 (오전 라운딩에만 표기, J열=1인 조식비)
-      if (g.teeIdx === 0 && i > 0 && inv.bfPP > 0 && inv.bfNights > 0) {
-        // 조식 단가 (1박 기준)
-        const bfUnit = inv.bfPP / inv.bfNights;
-        setV("J" + row, Math.round(bfUnit));
-        setV("K" + row, ppl * (g.gf + Math.round(bfUnit)));
+      if (hasBf && bfUnit > 0) {
+        setV("J" + row, bfUnit);
+        setV("K" + row, ppl * (g.gf + bfUnit));
       } else {
         setV("K" + row, ppl * g.gf);
       }
@@ -1106,36 +1112,44 @@ export default function DomesticGolf() {
                   </div>
                 ))}
               </div>) },
-            ...(["tee1","tee2","tee3","tee4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((tk, i) => {
-              const rcKey = "roundCourse"+(i+1);
-              const rc = resForm[rcKey] || "prv";
-              const updateCombo = (newRc) => {
-                const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
-                return { [rcKey]: newRc, combo: arr.join("|") };
-              };
-              return {
-                label: (i+1)+"일차 티오프",
-                node: <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                  <input style={{ ...inp, flex: 1 }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"예: 14:00":"예: 07:00"} />
-                  <select style={{ ...inp, width: "70px", padding: "10px 4px" }} value={resForm["teeType"+(i+1)] ?? (i===0?1:0)} onChange={e => setResForm(p => ({...p, ["teeType"+(i+1)]: parseInt(e.target.value)}))}>
-                    <option value={0}>1부</option>
-                    <option value={1}>2부</option>
-                  </select>
-                  <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("prv")}))} style={{ padding: "8px 10px", borderRadius: "8px", border: "2px solid "+(rc==="prv"?"#2980b9":"#ddd"), background: rc==="prv"?"#ebf5fb":"#fff", color: rc==="prv"?"#2980b9":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>회원</button>
-                  <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("pub")}))} style={{ padding: "8px 10px", borderRadius: "8px", border: "2px solid "+(rc==="pub"?"#27ae60":"#ddd"), background: rc==="pub"?"#eafaf1":"#fff", color: rc==="pub"?"#27ae60":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>대중</button>
-                </div>
-              };
-            })),
+            { fullWidth: true, label: "라운드별 구성 (일차 / 시간 / 부 / 코스 / 조식 / 추가금)", node: (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, i) => {
+                  const tk = "tee"+(i+1);
+                  const rcKey = "roundCourse"+(i+1);
+                  const ttKey = "teeType"+(i+1);
+                  const surKey = "teeSur"+(i+1);
+                  const bfKey = "bfDay"+(i+1);
+                  const rc = resForm[rcKey] || "prv";
+                  const tt = resForm[ttKey] ?? (i===0?1:0);
+                  // 조식 기본값: 첫날 X, 이후 1부면 O (수동 override 가능)
+                  const autoBf = i > 0 && tt === 0 && resForm.bfIncluded !== false;
+                  const bfChecked = resForm[bfKey] !== undefined ? !!resForm[bfKey] : autoBf;
+                  const updateCombo = (newRc) => {
+                    const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
+                    return { [rcKey]: newRc, combo: arr.join("|") };
+                  };
+                  return (
+                    <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center", padding: "10px", background: G.lighter, border: "1px solid "+G.border, borderRadius: "8px", flexWrap: "wrap" }}>
+                      <div style={{ minWidth: "48px", fontSize: "13px", fontWeight: "800", color: G.primary }}>{i+1}일차</div>
+                      <input style={{ ...inp, width: "85px", padding: "8px 6px", textAlign: "center" }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"14:00":"07:00"} />
+                      <select style={{ ...inp, width: "64px", padding: "8px 4px" }} value={tt} onChange={e => setResForm(p => ({...p, [ttKey]: parseInt(e.target.value)}))}>
+                        <option value={0}>1부</option>
+                        <option value={1}>2부</option>
+                      </select>
+                      <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("prv")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(rc==="prv"?"#2980b9":"#ddd"), background: rc==="prv"?"#ebf5fb":"#fff", color: rc==="prv"?"#2980b9":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>회원</button>
+                      <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("pub")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(rc==="pub"?"#27ae60":"#ddd"), background: rc==="pub"?"#eafaf1":"#fff", color: rc==="pub"?"#27ae60":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>대중</button>
+                      <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", padding: "6px 8px", borderRadius: "6px", background: bfChecked ? "#eafaf1" : "#fafafa", border: "1px solid " + (bfChecked ? "#27ae60" : "#eee") }}>
+                        <input type="checkbox" checked={bfChecked} onChange={e => setResForm(p => ({...p, [bfKey]: e.target.checked}))} style={{ width: "14px", height: "14px", accentColor: G.primary, cursor: "pointer" }} />
+                        <span style={{ fontSize: "12px", fontWeight: "700", color: bfChecked?"#27ae60":"#888" }}>조식</span>
+                      </label>
+                      <input style={{ ...inp, width: "100px", padding: "8px 6px", textAlign: "right" }} type="number" value={resForm[surKey]||""} onChange={e => setResForm(p => ({...p, [surKey]: parseInt(e.target.value)||0}))} placeholder="추가금" />
+                    </div>
+                  );
+                })}
+              </div>
+            )},
             { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: Number(e.target.value)||0}))} placeholder={String(resForm.teams*4)+"명 (자동)"} /> },
-            { label: "조식", node: <label style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 0", cursor: "pointer" }}>
-                <input type="checkbox" checked={resForm.bfIncluded !== false} onChange={e => setResForm(p => ({...p, bfIncluded: e.target.checked}))} style={{ width: "18px", height: "18px", accentColor: G.primary, cursor: "pointer" }} />
-                <span style={{ fontSize: "14px", color: G.text, fontWeight: "600" }}>조식 포함 {resForm.bfIncluded !== false ? "(해장국+커피)" : "(미포함)"}</span>
-              </label>
-            },
-            ...(["teeSur1","teeSur2","teeSur3","teeSur4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((sk, i) => ({
-              label: (i+1)+"일차 추가금",
-              node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
-            }))),
             { label: "예약 유형", node: (
               <div style={{ display: "flex", gap: "8px" }}>
                 {[["confirmed","✅ 확정예약"],["tentative","📋 가예약"]].map(([k,l]) => (
@@ -1144,8 +1158,8 @@ export default function DomesticGolf() {
               </div>
             ) },
             { label: "메모", node: <input style={inp} value={resForm.memo||""} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} placeholder="특이사항" /> },
-          ].map(({ label, node }, idx) => (
-            <div key={idx}><label style={{ fontSize: "12px", fontWeight: "700", color: "#555", display: "block", marginBottom: "4px" }}>{label}</label>{node}</div>
+          ].map(({ label, node, fullWidth }, idx) => (
+            <div key={idx} style={fullWidth ? { gridColumn: "1 / -1" } : {}}><label style={{ fontSize: "12px", fontWeight: "700", color: "#555", display: "block", marginBottom: "4px" }}>{label}</label>{node}</div>
           ))}
         </div>
         <button onClick={() => {
@@ -1157,7 +1171,9 @@ export default function DomesticGolf() {
             tee1: resForm.tee1||"", tee2: resForm.tee2||"", tee3: resForm.tee3||"", tee4: resForm.tee4||"",
             tee_sur1: resForm.teeSur1||0, tee_sur2: resForm.teeSur2||0, tee_sur3: resForm.teeSur3||0, tee_sur4: resForm.teeSur4||0,
             tee_type1: resForm.teeType1??1, tee_type2: resForm.teeType2??0, tee_type3: resForm.teeType3??0, tee_type4: resForm.teeType4??0,
-            gf_ppl: Number(resForm.gfPpl)||0, bf_ppl: Number(resForm.bfPpl)||0, bf_included: resForm.bfIncluded !== false, memo: resForm.memo||"", res_type: resForm.res_type||"confirmed"
+            gf_ppl: Number(resForm.gfPpl)||0, bf_ppl: Number(resForm.bfPpl)||0, bf_included: resForm.bfIncluded !== false,
+            bf_day1: resForm.bfDay1 ?? null, bf_day2: resForm.bfDay2 ?? null, bf_day3: resForm.bfDay3 ?? null, bf_day4: resForm.bfDay4 ?? null,
+            memo: resForm.memo||"", res_type: resForm.res_type||"confirmed"
           }).then(() => {
             const updated = { ...selRes, ...resForm,
               depDate: resForm.depDate, repName: resForm.repName, phone: resForm.phone,
@@ -1224,36 +1240,48 @@ export default function DomesticGolf() {
                   </div>
                 ))}
               </div>) },
-            ...(["tee1","tee2","tee3","tee4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((tk, i) => {
-              const rcKey = "roundCourse"+(i+1);
-              const rc = resForm[rcKey] || "prv";
-              const updateCombo = (newRc) => {
-                const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
-                return { [rcKey]: newRc, combo: arr.join("|") };
-              };
-              return {
-                label: (i+1)+"일차 티오프",
-                node: <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                  <input style={{ ...inp, flex: 1 }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"예: 14:00":"예: 07:00"} />
-                  <select style={{ ...inp, width: "70px", padding: "10px 4px" }} value={resForm["teeType"+(i+1)] ?? (i===0?1:0)} onChange={e => setResForm(p => ({...p, ["teeType"+(i+1)]: parseInt(e.target.value)}))}>
-                    <option value={0}>1부</option>
-                    <option value={1}>2부</option>
-                  </select>
-                  <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("prv")}))} style={{ padding: "8px 10px", borderRadius: "8px", border: "2px solid "+(rc==="prv"?"#2980b9":"#ddd"), background: rc==="prv"?"#ebf5fb":"#fff", color: rc==="prv"?"#2980b9":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>회원</button>
-                  <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("pub")}))} style={{ padding: "8px 10px", borderRadius: "8px", border: "2px solid "+(rc==="pub"?"#27ae60":"#ddd"), background: rc==="pub"?"#eafaf1":"#fff", color: rc==="pub"?"#27ae60":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>대중</button>
-                </div>
-              };
-            })),
+            { fullWidth: true, label: "라운드별 구성 (일차 / 시간 / 부 / 코스 / 조식 / 추가금)", node: (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, i) => {
+                  const tk = "tee"+(i+1);
+                  const rcKey = "roundCourse"+(i+1);
+                  const ttKey = "teeType"+(i+1);
+                  const surKey = "teeSur"+(i+1);
+                  const bfKey = "bfDay"+(i+1);
+                  const rc = resForm[rcKey] || "prv";
+                  const tt = resForm[ttKey] ?? (i===0?1:0);
+                  const autoBf = i > 0 && tt === 0 && resForm.bfIncluded !== false;
+                  const bfChecked = resForm[bfKey] !== undefined ? !!resForm[bfKey] : autoBf;
+                  const updateCombo = (newRc) => {
+                    const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
+                    return { [rcKey]: newRc, combo: arr.join("|") };
+                  };
+                  return (
+                    <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center", padding: "10px", background: G.lighter, border: "1px solid "+G.border, borderRadius: "8px", flexWrap: "wrap" }}>
+                      <div style={{ minWidth: "48px", fontSize: "13px", fontWeight: "800", color: G.primary }}>{i+1}일차</div>
+                      <input style={{ ...inp, width: "85px", padding: "8px 6px", textAlign: "center" }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"14:00":"07:00"} />
+                      <select style={{ ...inp, width: "64px", padding: "8px 4px" }} value={tt} onChange={e => setResForm(p => ({...p, [ttKey]: parseInt(e.target.value)}))}>
+                        <option value={0}>1부</option>
+                        <option value={1}>2부</option>
+                      </select>
+                      <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("prv")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(rc==="prv"?"#2980b9":"#ddd"), background: rc==="prv"?"#ebf5fb":"#fff", color: rc==="prv"?"#2980b9":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>회원</button>
+                      <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("pub")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(rc==="pub"?"#27ae60":"#ddd"), background: rc==="pub"?"#eafaf1":"#fff", color: rc==="pub"?"#27ae60":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>대중</button>
+                      <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", padding: "6px 8px", borderRadius: "6px", background: bfChecked ? "#eafaf1" : "#fafafa", border: "1px solid " + (bfChecked ? "#27ae60" : "#eee") }}>
+                        <input type="checkbox" checked={bfChecked} onChange={e => setResForm(p => ({...p, [bfKey]: e.target.checked}))} style={{ width: "14px", height: "14px", accentColor: G.primary, cursor: "pointer" }} />
+                        <span style={{ fontSize: "12px", fontWeight: "700", color: bfChecked?"#27ae60":"#888" }}>조식</span>
+                      </label>
+                      <input style={{ ...inp, width: "100px", padding: "8px 6px", textAlign: "right" }} type="number" value={resForm[surKey]||""} onChange={e => setResForm(p => ({...p, [surKey]: parseInt(e.target.value)||0}))} placeholder="추가금" />
+                    </div>
+                  );
+                })}
+              </div>
+            )},
             { label: "그린피 인원 (비워두면 팀수x4)", node: <input style={inp} type="number" value={resForm.gfPpl||""} onChange={e => setResForm(p => ({...p, gfPpl: Number(e.target.value)||0}))} placeholder={String(resForm.teams*4) + "명 (자동)"} /> },
-            { label: "조식", node: <label style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 0", cursor: "pointer" }}>
+            { label: "기본 조식 설정 (각 일차 조식 체크박스 기본값)", node: <label style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 0", cursor: "pointer" }}>
                 <input type="checkbox" checked={resForm.bfIncluded !== false} onChange={e => setResForm(p => ({...p, bfIncluded: e.target.checked}))} style={{ width: "18px", height: "18px", accentColor: G.primary, cursor: "pointer" }} />
                 <span style={{ fontSize: "14px", color: G.text, fontWeight: "600" }}>조식 포함 {resForm.bfIncluded !== false ? "(해장국+커피)" : "(미포함)"}</span>
               </label>
             },
-            ...(["teeSur1","teeSur2","teeSur3","teeSur4"].slice(0, PACKAGES[resForm.nights]?.rounds||2).map((sk, i) => ({
-              label: (i+1)+"일차 추가금",
-              node: <input style={inp} type="number" value={resForm[sk]||""} onChange={e => setResForm(p => ({...p, [sk]: parseInt(e.target.value)||0}))} placeholder="0 (없으면 비워두기)" />
-            }))),
             { label: "예약 유형", node: (
               <div style={{ display: "flex", gap: "8px" }}>
                 {[["confirmed","✅ 확정예약"],["tentative","📋 가예약"]].map(([k,l]) => (
@@ -1262,8 +1290,8 @@ export default function DomesticGolf() {
               </div>
             ) },
             { label: "메모", node: <input style={inp} placeholder="특이사항" value={resForm.memo} onChange={e => setResForm(p => ({...p, memo: e.target.value}))} /> },
-          ].map(({ label, node }, idx) => (
-            <div key={idx}>
+          ].map(({ label, node, fullWidth }, idx) => (
+            <div key={idx} style={fullWidth ? { gridColumn: "1 / -1" } : {}}>
               <label style={{ fontSize: "12px", fontWeight: "700", color: "#555", display: "block", marginBottom: "4px" }}>{label}</label>
               {node}
             </div>
@@ -1308,6 +1336,10 @@ export default function DomesticGolf() {
               gf_ppl: Number(resForm.gfPpl) || 0,
               bf_ppl: Number(resForm.bfPpl) || 0,
               bf_included: resForm.bfIncluded !== false,
+              bf_day1: resForm.bfDay1 ?? null,
+              bf_day2: resForm.bfDay2 ?? null,
+              bf_day3: resForm.bfDay3 ?? null,
+              bf_day4: resForm.bfDay4 ?? null,
               memo: resForm.memo || "",
               res_type: resForm.res_type || "confirmed",
             }).then(data => {
@@ -1326,6 +1358,10 @@ export default function DomesticGolf() {
                 teeSur1: r.tee_sur1||0, teeSur2: r.tee_sur2||0, teeSur3: r.tee_sur3||0, teeSur4: r.tee_sur4||0,
                 teeType1: r.tee_type1??1, teeType2: r.tee_type2??0, teeType3: r.tee_type3??0, teeType4: r.tee_type4??0,
                 bfIncluded: r.bf_included !== false,
+          bfDay1: r.bf_day1 ?? undefined,
+          bfDay2: r.bf_day2 ?? undefined,
+          bfDay3: r.bf_day3 ?? undefined,
+          bfDay4: r.bf_day4 ?? undefined,
                 gfPpl: Number(r.gf_ppl)||0, bfPpl: Number(r.bf_ppl)||0,
                 memo: r.memo, createdAt: r.created_at, resType: r.res_type||"confirmed",
               }]);
