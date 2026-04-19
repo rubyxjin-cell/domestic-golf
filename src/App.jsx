@@ -634,9 +634,9 @@ export default function DomesticGolf() {
       const g = inv.gfList[i];
       const row = roundRows[i];
       const courseLabel = courseKeyToLabel(inv.courseArr[i] || "prv");
-      const partLabel = g.teeIdx === 0 ? "1부" : "2부";
       const teeTime = teeTimes[i] || "";
-      const holdingLabel = teeTime ? `${partLabel} ${teeTime}` : partLabel;
+      // 홀딩시간: 티오프 시간만 표기 (부 표시 제거)
+      const holdingLabel = teeTime;
       // 조식 포함 여부: 일차별 설정 우선, 없으면 자동 (1부 AND i>0 AND bfIncluded)
       const autoBf = g.teeIdx === 0 && i > 0 && r.bfIncluded !== false;
       const hasBf = bfDays[i] !== undefined && bfDays[i] !== null ? !!bfDays[i] : autoBf;
@@ -1386,7 +1386,26 @@ export default function DomesticGolf() {
               <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>예약 {reservations.length}건</div>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => setAgtTab("form")} style={{ padding: "8px 16px", background: G.primary, color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>+ 예약 등록</button>
+              <button onClick={() => {
+                // 예약 등록 폼 초기화 (이전 입력값 제거)
+                setResForm({
+                  depDate: "", repName: "", phone: "",
+                  productId: "alpensia", nights: "1박2일", combo: "prv2",
+                  teams: 1, gfPpl: 0, bfPpl: 0, bfIncluded: true,
+                  rmType: "HIS33", rmCnt1: 1,
+                  rmType2: "NONE", rmCnt2: 0,
+                  rmType3: "NONE", rmCnt3: 0,
+                  rmType4: "NONE", rmCnt4: 0,
+                  rmPpl1: 0, rmPpl2: 0, rmPpl3: 0, rmPpl4: 0,
+                  tee1: "", tee2: "", tee3: "", tee4: "",
+                  teeSur1: 0, teeSur2: 0, teeSur3: 0, teeSur4: 0,
+                  teeType1: 1, teeType2: 0, teeType3: 0, teeType4: 0,
+                  roundCourse1: "prv", roundCourse2: "prv", roundCourse3: "prv", roundCourse4: "prv",
+                  bfDay1: undefined, bfDay2: undefined, bfDay3: undefined, bfDay4: undefined,
+                  res_type: "confirmed", memo: ""
+                });
+                setAgtTab("form");
+              }} style={{ padding: "8px 16px", background: G.primary, color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>+ 예약 등록</button>
               <button onClick={() => { setAgtAuthed(null); setAgtTab("login"); setReservations([]); setAgtResLoaded(false); }} style={{ padding: "8px 12px", background: "#f0f0f0", color: "#666", border: "none", borderRadius: "8px", fontSize: "12px", cursor: "pointer" }}>로그아웃</button>
             </div>
           </div>
