@@ -567,13 +567,17 @@ export default function DomesticGolf() {
         const occ = rmDg.occ || 4;
         const effectivePpl = (g.ppl && g.ppl > 0) ? g.ppl : g.cnt * occ;
         let rmPP = 0;
+        const nightlyRates = [];
         for (let i = 0; i < numNights; i++) {
           const ds = addDays(date, i);
-          const rate = getRmRate(rmDg, ds);
+          const rate = getRmRate(rmDg, ds); // 1실당 요금
+          const nightTotal = rate * g.cnt;  // 그 밤 전체 요금 (실수 × 실당 요금)
+          const perPerson = effectivePpl > 0 ? Math.ceil(nightTotal / effectivePpl) : 0;
+          nightlyRates.push({ date: ds, rate, nightTotal, perPerson });
           rmPP += (rate * g.cnt) / effectivePpl;
         }
         rmPP = Math.ceil(rmPP);
-        return { type: g.type, cnt: g.cnt, occ, ppl: g.ppl||0, groupPpl: effectivePpl, rmPP, label: rmLabel(g.type), sellPP: gfTotal + rmPP + bfPP2 };
+        return { type: g.type, cnt: g.cnt, occ, ppl: g.ppl||0, groupPpl: effectivePpl, rmPP, label: rmLabel(g.type), sellPP: gfTotal + rmPP + bfPP2, nightlyRates };
       });
 
     const noHotel2 = rmGroupsData.length === 0;
@@ -624,12 +628,15 @@ export default function DomesticGolf() {
     setV("G7", r.phone || "");
 
     // 골프 예약 (최대 4라운드, 행 11~14)
+    // ※ 팩스는 알펜시아에 원가만 전송 - 커미션 2,500원/인/라운드 차감
+    const COMMISSION = 2500;
     const ppl = r.teams * 4;
     const roundRows = [11, 12, 13, 14];
     const teeTimes = [r.tee1, r.tee2, r.tee3, r.tee4];
     const bfDays = [r.bfDay1, r.bfDay2, r.bfDay3, r.bfDay4];
     // 1박당 조식 단가 계산
     const bfUnit = (inv.bfNights > 0 && inv.bfPP > 0) ? Math.round(inv.bfPP / inv.bfNights) : 0;
+    let golfTotal = 0;
     for (let i = 0; i < inv.gfList.length && i < 4; i++) {
       const g = inv.gfList[i];
       const row = roundRows[i];
@@ -640,54 +647,77 @@ export default function DomesticGolf() {
       // 조식 포함 여부: 일차별 설정 우선, 없으면 자동 (1부 AND i>0 AND bfIncluded)
       const autoBf = g.teeIdx === 0 && i > 0 && r.bfIncluded !== false;
       const hasBf = bfDays[i] !== undefined && bfDays[i] !== null ? !!bfDays[i] : autoBf;
+      // 팩스용 그린피 (원가) = 계산된 그린피 - 커미션
+      const gfOriginal = Math.max(0, g.gf - COMMISSION);
       setV("A" + row, toExcelSerial(g.ds));
       setV("B" + row, dayKor(g.ds));
       setV("C" + row, courseLabel);
       setV("D" + row, r.teams);
       setV("E" + row, ppl);
       setV("F" + row, holdingLabel);
-      setV("H" + row, g.gf);
+      setV("H" + row, gfOriginal);
+      let rowTotal;
       if (hasBf && bfUnit > 0) {
         setV("J" + row, bfUnit);
-        setV("K" + row, ppl * (g.gf + bfUnit));
+        rowTotal = ppl * (gfOriginal + bfUnit);
       } else {
-        setV("K" + row, ppl * g.gf);
+        rowTotal = ppl * gfOriginal;
       }
+      setV("K" + row, rowTotal);
+      golfTotal += rowTotal;
     }
 
-    // 골프 총 금액 (J15)
-    const golfTotal = inv.gfList.reduce((s, g, i) => {
-      const base = ppl * g.gf;
-      const bfAdd = (g.teeIdx === 0 && i > 0 && inv.bfPP > 0 && inv.bfNights > 0)
-        ? ppl * Math.round(inv.bfPP / inv.bfNights) : 0;
-      return s + base + bfAdd;
-    }, 0);
+    // 골프 총 금액 (J15) = 모든 라운드 합계 (커미션 제외)
     setV("J15", golfTotal);
 
-    // 객실 예약 (행 20~22)
+    // 객실 예약 (행 20~22) - 그룹 순서 → 그룹 내 밤 순서로 펼치기
     const rmRows = [20, 21, 22];
     const rmGroups = inv.rmGroupsData || [];
-    let roomTotal = 0;
-    for (let i = 0; i < rmGroups.length && i < 3; i++) {
-      const g = rmGroups[i];
-      const row = rmRows[i];
+    const rmRowsData = [];
+    for (const g of rmGroups) {
       const { place, size } = roomTypeToLabels(g.type);
-      setV("A" + row, toExcelSerial(r.depDate));
-      setV("B" + row, dayKor(r.depDate));
-      setV("C" + row, place);
-      setV("D" + row, size);
-      setV("F" + row, g.cnt);
-      // 1실 요금 (1인 요금 × 그룹 인원 / 실수 = 실당 요금)
-      const perRoom = Math.round((g.rmPP * g.groupPpl) / g.cnt);
-      setV("G" + row, perRoom);
-      const sub = perRoom * g.cnt * (inv.numNights || 1);
-      setV("J" + row, sub);
-      roomTotal += sub;
+      for (const n of (g.nightlyRates || [])) {
+        rmRowsData.push({
+          date: n.date,
+          place,
+          size,
+          cnt: g.cnt,
+          rate: n.rate,           // 1실당 요금
+          nightTotal: n.nightTotal, // 그 밤 총액 (실수 × 실당)
+        });
+      }
     }
-    setV("J23", roomTotal);
+    // 템플릿 행 3개까지 표시
+    let displayedRoomTotal = 0;
+    for (let i = 0; i < rmRowsData.length && i < 3; i++) {
+      const d = rmRowsData[i];
+      const row = rmRows[i];
+      setV("A" + row, toExcelSerial(d.date));
+      setV("B" + row, dayKor(d.date));
+      setV("C" + row, d.place);
+      setV("D" + row, d.size);
+      setV("F" + row, d.cnt);
+      setV("G" + row, d.rate);          // 1실당 요금
+      setV("J" + row, d.nightTotal);    // 그 밤 총액
+      displayedRoomTotal += d.nightTotal;
+    }
+    // 초과 행 제거 (빈 행)
+    for (let i = rmRowsData.length; i < 3; i++) {
+      const row = rmRows[i];
+      setV("A" + row, "");
+      setV("B" + row, "");
+      setV("C" + row, "");
+      setV("D" + row, "");
+      setV("F" + row, "");
+      setV("G" + row, "");
+      setV("J" + row, 0);
+    }
+    // 총 객실 요금 = 모든 밤 × 모든 그룹 합계 (3행 초과분 포함)
+    const fullRoomTotal = rmRowsData.reduce((s, d) => s + d.nightTotal, 0);
+    setV("J23", fullRoomTotal);
 
     // 총 합계
-    setV("J26", golfTotal + roomTotal);
+    setV("J26", golfTotal + fullRoomTotal);
 
     return wb;
   };
@@ -978,12 +1008,14 @@ export default function DomesticGolf() {
                       );
                     })}
                     {(inv.rmGroupsData||[]).length > 0
-                      ? (inv.rmGroupsData||[]).map((g,gi) => (
-                          <tr key={gi} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                            <td style={{ padding: "6px 4px", color: "#555", fontSize: "13px" }}>🏨 {g.label} {g.cnt}실 ({g.groupPpl}명) 객실비/인</td>
-                            <td style={{ padding: "6px 4px", textAlign: "right" }}>₩{fmt2(g.rmPP)}</td>
-                          </tr>
-                        ))
+                      ? (inv.rmGroupsData||[]).flatMap((g, gi) =>
+                          (g.nightlyRates || []).map((n, ni) => (
+                            <tr key={`${gi}-${ni}`} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                              <td style={{ padding: "6px 4px", color: "#555", fontSize: "13px" }}>🏨 {fmtD(n.date)} {g.label} {g.cnt}실 ({g.groupPpl}명) - ₩{fmt(n.nightTotal)}</td>
+                              <td style={{ padding: "6px 4px", textAlign: "right" }}>₩{fmt2(n.perPerson)}</td>
+                            </tr>
+                          ))
+                        )
                       : inv.rmPP > 0 && (
                           <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
                             <td style={{ padding: "6px 4px", color: "#555", fontSize: "13px" }}>🏨 객실 ÷ {inv.ppl}인</td>
