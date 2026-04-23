@@ -54,8 +54,8 @@ const loadExcelJS = () => new Promise((res, rej) => {
 // 팩스 신청서 설정
 // ============================================================
 const FAX_CONFIG = {
-  // 팩스 수신번호 (테스트: 사무실 SINDOH. 실전: "02-573-7376" (알펜시아))
-  faxNumber: "02-545-9981",
+  // 팩스 수신번호 (알펜시아 예약 팩스)
+  faxNumber: "02-573-7376",
   // Vercel API 경로 (클라우드 기반 자동 발송)
   apiUrl: "/api/send-fax",
   // 템플릿 파일 위치 (public 폴더)
