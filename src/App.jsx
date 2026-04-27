@@ -878,16 +878,28 @@ export default function DomesticGolf() {
       const d2date = r.depDate ? addDays(r.depDate, numNightsForDate) : "";
       return (
         <div style={sc}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
-            <button onClick={() => { setAgtTab("list"); setSelRes(null); setShowDeleteConfirm(false); setDeletePw(""); setDeletePwErr(false); }} style={{ padding: "6px 14px", borderRadius: "8px", border: "1px solid #ddd", background: "#fff", cursor: "pointer", fontSize: "13px" }}>← 목록</button>
-            <div style={{ fontSize: "16px", fontWeight: "800", color: G.primary }}>📄 인보이스</div>
-            <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: G.textMid, cursor: "pointer", marginLeft: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
+            <button onClick={() => { setAgtTab("list"); setSelRes(null); setShowDeleteConfirm(false); setDeletePw(""); setDeletePwErr(false); }} style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid #ddd", background: "#fff", cursor: "pointer", fontSize: "13px", whiteSpace: "nowrap" }}>← 목록</button>
+            <div style={{ fontSize: "16px", fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>📄 인보이스</div>
+            <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: G.textMid, cursor: "pointer", marginLeft: "4px", whiteSpace: "nowrap" }}>
               <input type="checkbox" checked={showTeeSur} onChange={e => setShowTeeSur(e.target.checked)} style={{ accentColor: G.primary }} />
               시간추가금
             </label>
-            <button onClick={doAgtDownload} style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "8px", border: "none", background: "#d32f2f", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📸 JPG 저장</button>
-            <button onClick={downloadFaxXlsx} style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid " + G.primary, background: "#fff", color: G.primary, fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>📥 신청서 xlsx</button>
-            <button onClick={sendFaxNow} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: "#2e7d52", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>📠 팩스발송</button>
+            <button onClick={doAgtDownload} style={{ marginLeft: "auto", padding: "8px 14px", borderRadius: "8px", border: "none", background: "#d32f2f", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer", whiteSpace: "nowrap" }}>📸 JPG 저장</button>
+            <button onClick={() => {
+              // 🆕 실수 방지: 마스터 비밀번호(사장님 전용) 확인 후 다운로드
+              const pw = window.prompt("📥 신청서 xlsx 다운로드\n\n비밀번호를 입력하세요:");
+              if (pw === null) return; // 취소
+              if (pw !== "3791") { alert("❌ 비밀번호가 틀렸습니다."); return; }
+              downloadFaxXlsx();
+            }} style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid " + G.primary, background: "#fff", color: G.primary, fontWeight: "700", fontSize: "13px", cursor: "pointer", whiteSpace: "nowrap" }}>📥 신청서 xlsx</button>
+            <button onClick={() => {
+              // 🆕 실수 방지: 마스터 비밀번호(사장님 전용) 확인 후 팩스 발송
+              const pw = window.prompt("📠 팩스 발송\n\n실제로 팩스가 발송됩니다.\n비밀번호를 입력하세요:");
+              if (pw === null) return; // 취소
+              if (pw !== "3791") { alert("❌ 비밀번호가 틀렸습니다."); return; }
+              sendFaxNow();
+            }} style={{ padding: "8px 14px", borderRadius: "8px", border: "none", background: "#2e7d52", color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer", whiteSpace: "nowrap" }}>📠 팩스발송</button>
             {(selRes?.resType||"confirmed") === "tentative" && (
               <button onClick={() => {
                 if (!window.confirm("확정예약으로 변경하시겠습니까?")) return;
@@ -898,12 +910,12 @@ export default function DomesticGolf() {
                     setSelRes(updated);
                     alert("확정예약으로 변경되었습니다!");
                   }).catch(e => alert("오류: " + e.message));
-              }} style={{ padding: "8px 14px", borderRadius: "8px", border: "none", background: G.primary, color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer" }}>✅ 확정으로 변경</button>
+              }} style={{ padding: "8px 12px", borderRadius: "8px", border: "none", background: G.primary, color: "#fff", fontWeight: "800", fontSize: "13px", cursor: "pointer", whiteSpace: "nowrap" }}>✅ 확정으로 변경</button>
             )}
             <button onClick={() => { setShowEditPw(true); setEditPw(""); setEditPwErr(false); setEditMode(false); }}
-              style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid " + G.primary, background: "#fff", color: G.primary, fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>✏️ 수정</button>
+              style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid " + G.primary, background: "#fff", color: G.primary, fontWeight: "700", fontSize: "13px", cursor: "pointer", whiteSpace: "nowrap" }}>✏️ 수정</button>
             <button onClick={() => { setShowDeleteConfirm(true); setDeletePw(""); setDeletePwErr(false); }}
-              style={{ padding: "8px 14px", borderRadius: "8px", border: "1px solid #e74c3c", background: "#fff", color: "#e74c3c", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}>🗑 삭제</button>
+              style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #e74c3c", background: "#fff", color: "#e74c3c", fontWeight: "700", fontSize: "13px", cursor: "pointer", whiteSpace: "nowrap" }}>🗑 삭제</button>
           </div>
 
           {/* 수정 비밀번호 확인 */}
@@ -1469,14 +1481,19 @@ export default function DomesticGolf() {
               const renderRow = (r) => {
                 const productName = PRODUCT_LIST.find(p => p.id === (r.productId||"alpensia"))?.name || "-";
                 const confirmDates = agtResTypeTab === "tentative" ? getConfirmDates(r.depDate, r.combo) : [];
+                // 🆕 신규 예약 표시 (등록 후 24시간 이내)
+                const isNew = r.createdAt && (Date.now() - new Date(r.createdAt).getTime()) < 86400000;
                 return (
                   <div key={r.id} onClick={() => { setSelRes(r); setAgtTab("invoice"); setEditMode(false); setShowEditPw(false); setEditPw(""); setShowDeleteConfirm(false); }}
-                    style={{ padding: "10px 12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, transition: "background 0.15s" }}
-                    onMouseEnter={e => e.currentTarget.style.background=G.lighter}
-                    onMouseLeave={e => e.currentTarget.style.background=""}
+                    style={{ padding: "10px 12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, transition: "background 0.15s", background: isNew ? "#FFF8E1" : "transparent", borderLeft: isNew ? "3px solid #f39c12" : "3px solid transparent" }}
+                    onMouseEnter={e => e.currentTarget.style.background = isNew ? "#FFF3CD" : G.lighter}
+                    onMouseLeave={e => e.currentTarget.style.background = isNew ? "#FFF8E1" : ""}
                   >
                     <div style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 70px 80px 1fr 44px", gap: "6px", fontSize: "13px", alignItems: "center" }}>
-                      <span style={{ fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>{r.depDate ? fmtD(r.depDate) : "-"}</span>
+                      <span style={{ fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>
+                        {r.depDate ? fmtD(r.depDate) : "-"}
+                        {isNew && <span style={{ display: "inline-block", marginLeft: "4px", fontSize: "9px", fontWeight: "800", background: "#f39c12", color: "#fff", padding: "1px 5px", borderRadius: "3px", verticalAlign: "middle", letterSpacing: "0.3px" }}>NEW</span>}
+                      </span>
                       <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.nights}</span>
                       <span style={{ fontWeight: "700", color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.repName}</span>
                       <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.phone}</span>
