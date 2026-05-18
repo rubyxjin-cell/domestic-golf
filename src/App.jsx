@@ -329,8 +329,10 @@ export default function DomesticGolf() {
   const [qClient, setQClient] = useState("");
   const [qPhone, setQPhone] = useState("");
   const [qMemo, setQMemo] = useState("");
-  const [qGroup1Label, setQGroup1Label] = useState("");  // 그룹1 라벨 (예: "호텔 이용 (2명)")
-  const [qGroup2Label, setQGroup2Label] = useState("");  // 그룹2 라벨 (예: "호텔 미이용 (2명)")
+  const [qGroup1Label, setQGroup1Label] = useState("");  // 그룹1 라벨 (예: "2인")
+  const [qGroup1Note, setQGroup1Note] = useState("");    // 그룹1 골드 태그 (예: "숙박 쿠폰 적용")
+  const [qGroup2Label, setQGroup2Label] = useState("");  // 그룹2 라벨
+  const [qGroup2Note, setQGroup2Note] = useState("");    // 그룹2 골드 태그
   const [qGroup2Price, setQGroup2Price] = useState("");  // 그룹2 1인 금액
   const [qTees, setQTees] = useState(["","","",""]); // 라운드별 티오프시간
   const qTee1 = qTees[0]; const qTee2 = qTees[1]; // 하위호환
@@ -2063,19 +2065,26 @@ export default function DomesticGolf() {
 
           {/* 이용자별 요금 표기 (4인 단체에서 2인은 얼마, 2인은 얼마 다르게 표기할 때) */}
           <div style={{ marginTop: "10px", padding: "12px 14px", background: "#fff8e1", borderRadius: "8px", border: "1px solid #f0c040" }}>
-            <div style={{ fontSize: "11px", fontWeight: "700", color: "#8b6914", marginBottom: "4px" }}>👥 이용자별 요금 표기 (선택) — 비워두면 기본 1인 요금만 표시</div>
-            <div style={{ fontSize: "10px", color: "#a08540", marginBottom: "10px", lineHeight: "1.5" }}>💡 팁: 라벨에 괄호 사용 → 자동으로 골드 태그로 변환됨 (예: "2인 (숙박 쿠폰 적용)")</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-              <div>
-                <label style={{ ...lbl, fontSize: "11px" }}>그룹 1 라벨</label>
-                <input style={inp} value={qGroup1Label} onChange={e => setQGroup1Label(e.target.value)} placeholder="예: 2인 (숙박 쿠폰 적용)" />
-                <div style={{ fontSize: "10px", color: "#888", marginTop: "3px" }}>금액은 위 "1인 요금" 자동 사용</div>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "#8b6914", marginBottom: "10px" }}>👥 이용자별 요금 표기 (선택) — 비워두면 기본 1인 요금만 표시</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: "12px" }}>
+              {/* 그룹 1 */}
+              <div style={{ padding: "10px", background: "#fff", borderRadius: "6px", border: "1px solid #f0c040" }}>
+                <div style={{ fontSize: "11px", fontWeight: "800", color: "#8b6914", marginBottom: "6px" }}>📦 그룹 1</div>
+                <label style={{ ...lbl, fontSize: "11px" }}>라벨</label>
+                <input style={inp} value={qGroup1Label} onChange={e => setQGroup1Label(e.target.value)} placeholder="예: 2인" />
+                <label style={{ ...lbl, fontSize: "11px", marginTop: "4px" }}>🎫 골드 태그 (선택)</label>
+                <input style={inp} value={qGroup1Note} onChange={e => setQGroup1Note(e.target.value)} placeholder="예: 숙박 쿠폰 적용" />
+                <div style={{ fontSize: "10px", color: "#888", marginTop: "4px" }}>💰 금액은 위 "1인 요금" 자동 사용</div>
               </div>
-              <div>
-                <label style={{ ...lbl, fontSize: "11px" }}>그룹 2 라벨</label>
+              {/* 그룹 2 */}
+              <div style={{ padding: "10px", background: "#fff", borderRadius: "6px", border: "1px solid #f0c040" }}>
+                <div style={{ fontSize: "11px", fontWeight: "800", color: "#8b6914", marginBottom: "6px" }}>📦 그룹 2</div>
+                <label style={{ ...lbl, fontSize: "11px" }}>라벨</label>
                 <input style={inp} value={qGroup2Label} onChange={e => setQGroup2Label(e.target.value)} placeholder="예: 2인" />
-                <label style={{ ...lbl, fontSize: "11px", marginTop: "4px" }}>그룹 2 1인 금액</label>
-                <input style={inp} value={qGroup2Price} onChange={e => setQGroup2Price(e.target.value)} placeholder="330000" />
+                <label style={{ ...lbl, fontSize: "11px", marginTop: "4px" }}>🎫 골드 태그 (선택)</label>
+                <input style={inp} value={qGroup2Note} onChange={e => setQGroup2Note(e.target.value)} placeholder="예: 일반" />
+                <label style={{ ...lbl, fontSize: "11px", marginTop: "4px" }}>💰 1인 금액</label>
+                <input style={inp} value={qGroup2Price} onChange={e => setQGroup2Price(e.target.value)} placeholder="350000" />
               </div>
             </div>
           </div>
@@ -2138,14 +2147,6 @@ export default function DomesticGolf() {
           <div style={{ background: "#fff", margin: "8px 12px 0", borderRadius: "10px", padding: "14px 16px" }}>
             {/* 요금 표시: 그룹별 카드 디자인 */}
             {(() => {
-              // 라벨에서 괄호 부분을 자동으로 골드 태그로 분리
-              const parseLabel = (label) => {
-                const match = (label || "").match(/^(.+?)\s*\((.+?)\)\s*$/);
-                if (match) return { main: match[1].trim(), note: match[2].trim() };
-                return { main: label || "", note: "" };
-              };
-              const g1 = parseLabel(qGroup1Label || "1인 요금");
-              const g2 = parseLabel(qGroup2Label || "");
               const hasG2 = qGroup2Label && qGroup2Price;
               const g2Price = parseInt(String(qGroup2Price).replace(/,/g,"")) || 0;
 
@@ -2188,8 +2189,8 @@ export default function DomesticGolf() {
                   borderBottom: "1px solid #f0f0f0",
                   marginBottom: "11px"
                 }}>
-                  <PriceCard main={g1.main} note={g1.note} price={displayPrice} />
-                  {hasG2 && <PriceCard main={g2.main} note={g2.note} price={g2Price} />}
+                  <PriceCard main={qGroup1Label || "1인 요금"} note={qGroup1Note} price={displayPrice} />
+                  {hasG2 && <PriceCard main={qGroup2Label} note={qGroup2Note} price={g2Price} />}
                 </div>
               );
             })()}
