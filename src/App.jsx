@@ -329,6 +329,9 @@ export default function DomesticGolf() {
   const [qClient, setQClient] = useState("");
   const [qPhone, setQPhone] = useState("");
   const [qMemo, setQMemo] = useState("");
+  const [qExtraLabel, setQExtraLabel] = useState("");    // 추가요금 라벨 (예: "호텔 이용 추가")
+  const [qExtraAmount, setQExtraAmount] = useState("");  // 추가요금 1인 금액
+  const [qExtraCount, setQExtraCount] = useState("");    // 적용 인원수
   const [qTees, setQTees] = useState(["","","",""]); // 라운드별 티오프시간
   const qTee1 = qTees[0]; const qTee2 = qTees[1]; // 하위호환
   const [qAccount, setQAccount] = useState("신한은행 140-015-261327 ㈜초이스골프");
@@ -2057,6 +2060,25 @@ export default function DomesticGolf() {
               </div>
             </div>
           </div>
+
+          {/* 추가요금 옵션 (호텔 이용자 추가, 싱글룸 차지 등) */}
+          <div style={{ marginTop: "10px", padding: "12px 14px", background: "#fff8e1", borderRadius: "8px", border: "1px solid #f0c040" }}>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "#8b6914", marginBottom: "8px" }}>💵 추가요금 표기 (선택) — 일부 인원만 부담하는 추가금</div>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "8px" }}>
+              <div>
+                <label style={{ ...lbl, fontSize: "11px" }}>라벨</label>
+                <input style={inp} value={qExtraLabel} onChange={e => setQExtraLabel(e.target.value)} placeholder="예: 호텔 이용 추가" />
+              </div>
+              <div>
+                <label style={{ ...lbl, fontSize: "11px" }}>1인 금액</label>
+                <input style={inp} value={qExtraAmount} onChange={e => setQExtraAmount(e.target.value)} placeholder="60000" />
+              </div>
+              <div>
+                <label style={{ ...lbl, fontSize: "11px" }}>적용 인원</label>
+                <input style={inp} value={qExtraCount} onChange={e => setQExtraCount(e.target.value)} placeholder="2" />
+              </div>
+            </div>
+          </div>
           {/* 안내 문구 선택 */}
           <div style={{ marginTop: "10px" }}>
             <div style={{ fontSize: "11px", fontWeight: "700", color: G.textMid, marginBottom: "8px" }}>📋 안내 문구 (선택)</div>
@@ -2119,6 +2141,19 @@ export default function DomesticGolf() {
               <div style={{ fontSize: "10px", color: "#888", fontWeight: "700", flexShrink: 0 }}>1인 요금</div>
               <div style={{ fontSize: "26px", fontWeight: "900", color: "#c0392b", letterSpacing: "-1px", lineHeight: 1 }}>₩{fmt(displayPrice)}</div>
             </div>
+            {/* 추가요금 표기 (입력된 경우만 표시) */}
+            {qExtraLabel && qExtraAmount && (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", background: "#fff8e1", borderRadius: "8px", border: "1px solid #f0c040", marginBottom: "11px" }}>
+                <div style={{ fontSize: "11px", fontWeight: "800", color: "#8b6914", flexShrink: 0 }}>＋ 추가</div>
+                <div style={{ flex: 1, fontSize: "12px", color: "#5a4500", fontWeight: "700" }}>
+                  {qExtraLabel}
+                  {qExtraCount && <span style={{ color: "#8b6914", fontWeight: "600", marginLeft: "6px" }}>({qExtraCount}인 적용)</span>}
+                </div>
+                <div style={{ fontSize: "15px", fontWeight: "900", color: "#c0392b", flexShrink: 0 }}>
+                  +₩{fmt(parseInt(String(qExtraAmount).replace(/,/g,"")) || 0)}/인
+                </div>
+              </div>
+            )}
             {/* 계좌 + 예약금 + 안내문구 */}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               {qAccount && (
