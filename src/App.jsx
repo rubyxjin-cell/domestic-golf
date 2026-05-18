@@ -2063,18 +2063,18 @@ export default function DomesticGolf() {
 
           {/* 이용자별 요금 표기 (4인 단체에서 2인은 얼마, 2인은 얼마 다르게 표기할 때) */}
           <div style={{ marginTop: "10px", padding: "12px 14px", background: "#fff8e1", borderRadius: "8px", border: "1px solid #f0c040" }}>
-            <div style={{ fontSize: "11px", fontWeight: "700", color: "#8b6914", marginBottom: "8px" }}>👥 이용자별 요금 표기 (선택) — 비워두면 단일 1인 요금만 표시</div>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "#8b6914", marginBottom: "8px" }}>👥 이용자별 요금 표기 (선택) — 비워두면 기본 1인 요금만 표시</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               <div>
                 <label style={{ ...lbl, fontSize: "11px" }}>그룹 1 라벨</label>
-                <input style={inp} value={qGroup1Label} onChange={e => setQGroup1Label(e.target.value)} placeholder="예: 홀리데이인 호텔 이용 (2명)" />
+                <input style={inp} value={qGroup1Label} onChange={e => setQGroup1Label(e.target.value)} placeholder="예: 2인 (숙박 쿠폰 적용)" />
                 <div style={{ fontSize: "10px", color: "#888", marginTop: "3px" }}>금액은 위 "1인 요금" 자동 사용</div>
               </div>
               <div>
                 <label style={{ ...lbl, fontSize: "11px" }}>그룹 2 라벨</label>
-                <input style={inp} value={qGroup2Label} onChange={e => setQGroup2Label(e.target.value)} placeholder="예: 호텔 미이용 (2명)" />
+                <input style={inp} value={qGroup2Label} onChange={e => setQGroup2Label(e.target.value)} placeholder="예: 2인" />
                 <label style={{ ...lbl, fontSize: "11px", marginTop: "4px" }}>그룹 2 1인 금액</label>
-                <input style={inp} value={qGroup2Price} onChange={e => setQGroup2Price(e.target.value)} placeholder="300000" />
+                <input style={inp} value={qGroup2Price} onChange={e => setQGroup2Price(e.target.value)} placeholder="330000" />
               </div>
             </div>
           </div>
@@ -2136,23 +2136,18 @@ export default function DomesticGolf() {
           {/* ③ 요금 + 계좌 + 안내문구 */}
           <div style={{ background: "#fff", margin: "8px 12px 0", borderRadius: "10px", padding: "14px 16px" }}>
             {/* 요금 표시: 그룹2가 입력되면 두 줄, 아니면 단일 표시 */}
-            {(qGroup2Label && qGroup2Price) ? (
-              <div style={{ paddingBottom: "11px", borderBottom: "1px solid #f0f0f0", marginBottom: "11px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "8px" }}>
-                  <div style={{ fontSize: "13px", color: "#222", fontWeight: "700" }}>{qGroup1Label || "1인 요금"}</div>
-                  <div style={{ fontSize: "22px", fontWeight: "900", color: "#c0392b", letterSpacing: "-0.5px" }}>₩{fmt(displayPrice)}</div>
-                </div>
+            <div style={{ paddingBottom: "11px", borderBottom: "1px solid #f0f0f0", marginBottom: "11px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: (qGroup2Label && qGroup2Price) ? "8px" : "0" }}>
+                <div style={{ fontSize: "15px", color: "#222", fontWeight: "800" }}>{qGroup1Label || "1인 요금"}</div>
+                <div style={{ fontSize: "24px", fontWeight: "900", color: "#c0392b", letterSpacing: "-0.5px", lineHeight: 1 }}>₩{fmt(displayPrice)}</div>
+              </div>
+              {(qGroup2Label && qGroup2Price) && (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <div style={{ fontSize: "13px", color: "#222", fontWeight: "700" }}>{qGroup2Label}</div>
-                  <div style={{ fontSize: "22px", fontWeight: "900", color: "#c0392b", letterSpacing: "-0.5px" }}>₩{fmt(parseInt(String(qGroup2Price).replace(/,/g,"")) || 0)}</div>
+                  <div style={{ fontSize: "15px", color: "#222", fontWeight: "800" }}>{qGroup2Label}</div>
+                  <div style={{ fontSize: "24px", fontWeight: "900", color: "#c0392b", letterSpacing: "-0.5px", lineHeight: 1 }}>₩{fmt(parseInt(String(qGroup2Price).replace(/,/g,"")) || 0)}</div>
                 </div>
-              </div>
-            ) : (
-              <div style={{ display: "flex", alignItems: "baseline", gap: "10px", paddingBottom: "11px", borderBottom: "1px solid #f0f0f0", marginBottom: "11px" }}>
-                <div style={{ fontSize: "10px", color: "#888", fontWeight: "700", flexShrink: 0 }}>{qGroup1Label || "1인 요금"}</div>
-                <div style={{ fontSize: "26px", fontWeight: "900", color: "#c0392b", letterSpacing: "-1px", lineHeight: 1 }}>₩{fmt(displayPrice)}</div>
-              </div>
-            )}
+              )}
+            </div>
             {/* 계좌 + 예약금 + 안내문구 */}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               {qAccount && (
