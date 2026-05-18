@@ -411,16 +411,40 @@ export default function DomesticGolf() {
         if (p.products) {
           const fp = Object.values(p.products)[0];
           if (fp?.courses?.pub) {
+            // 저장값 우선 사용, 누락된 시즌(s3/s4 등)은 DEF로 fallback
+            const mergeCourses = (defC, savedC) => {
+              if (!defC) return savedC;
+              if (!savedC) return defC;
+              return Object.fromEntries(Object.entries(defC).map(([cK, defCD]) => [
+                cK,
+                { ...defCD, ...(savedC[cK] || {}) }
+              ]));
+            };
+            const mergeRooms = (defR, savedR) => {
+              if (!defR) return savedR;
+              if (!savedR) return defR;
+              return Object.fromEntries(Object.entries(defR).map(([rN, defRD]) => [
+                rN,
+                { ...defRD, ...(savedR[rN] || {}) }
+              ]));
+            };
+            const mergeBreakfast = (defB, savedB) => {
+              if (typeof savedB === 'object' && savedB !== null) {
+                return { ...(typeof defB === 'object' ? defB : {}), ...savedB };
+              }
+              // 구버전 단일 숫자값(버그였음)은 무시하고 DEF 사용 - 가격 변동 방지
+              return defB;
+            };
             const fixed = Object.fromEntries(Object.entries(p.products).map(([k, v]) => [k, {
               ...v,
-              courses: DEF[k]?.courses ?? v.courses,
-              rooms: DEF[k]?.rooms ?? v.rooms,
-              breakfast: DEF[k]?.breakfast ?? v.breakfast,
-              seasonCut: DEF[k]?.seasonCut ?? v.seasonCut,
-              seasonCut2: DEF[k]?.seasonCut2 ?? v.seasonCut2,
-              seasonCut3: DEF[k]?.seasonCut3 ?? v.seasonCut3,
-              seasons: DEF[k]?.seasons ?? v.seasons,
-              surcharge: DEF[k]?.surcharge ?? v.surcharge,
+              courses: mergeCourses(DEF[k]?.courses, v.courses),
+              rooms: mergeRooms(DEF[k]?.rooms, v.rooms),
+              breakfast: mergeBreakfast(DEF[k]?.breakfast, v.breakfast),
+              seasonCut: v.seasonCut ?? DEF[k]?.seasonCut,
+              seasonCut2: v.seasonCut2 ?? DEF[k]?.seasonCut2,
+              seasonCut3: v.seasonCut3 ?? DEF[k]?.seasonCut3,
+              seasons: { ...(DEF[k]?.seasons || {}), ...(v.seasons || {}) },
+              surcharge: v.surcharge ?? DEF[k]?.surcharge,
               sub: (DEF[k]?.sub !== undefined) ? DEF[k].sub : (v.sub || ""),
               courseIntro: DEF[k]?.courseIntro ?? v.courseIntro,
               roomIntro: DEF[k]?.roomIntro ?? v.roomIntro,
@@ -2236,17 +2260,30 @@ export default function DomesticGolf() {
             <div><label style={lbl}>시즌1→2 구분일</label><input type="date" style={inp} value={p.seasonCut} onChange={e => upProd("seasonCut", e.target.value)} /></div>
             <div><label style={lbl}>시즌2→3 구분일</label><input type="date" style={inp} value={p.seasonCut2 || ""} onChange={e => upProd("seasonCut2", e.target.value)} /></div>
             <div><label style={lbl}>시즌3→4 구분일</label><input type="date" style={inp} value={p.seasonCut3 || ""} onChange={e => upProd("seasonCut3", e.target.value)} /></div>
-            <div><label style={lbl}>조식 (1인)</label><input type="number" style={inp} value={p.breakfast} onChange={e => upProd("breakfast", parseInt(e.target.value) || 0)} /></div>
             <div><label style={lbl}>2부+2부 추가금</label><input type="number" style={inp} value={p.surcharge} onChange={e => upProd("surcharge", parseInt(e.target.value) || 0)} /></div>
+          </div>
+          <div style={{ marginTop: "16px", padding: "14px", background: "#fafafa", borderRadius: "10px" }}>
+            <div style={{ fontSize: "13px", fontWeight: "700", color: "#555", marginBottom: "10px" }}>🥐 조식 요금 (1인 기준, 시즌별)</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: "10px" }}>
+              {["s1", "s2", "s3", "s4"].map(sn => {
+                const bfObj = (typeof p.breakfast === 'object' && p.breakfast) ? p.breakfast : { s1: p.breakfast || 0, s2: p.breakfast || 0, s3: p.breakfast || 0, s4: p.breakfast || 0 };
+                return (
+                  <div key={sn}>
+                    <label style={{ ...lbl, fontSize: "11px" }}>{sn === "s1" ? "시즌1" : sn === "s2" ? "시즌2" : sn === "s3" ? "시즌3" : "시즌4"} ({p.seasons[sn]})</label>
+                    <input type="number" style={inp} value={bfObj[sn] || 0} onChange={e => upProd("breakfast", { ...bfObj, [sn]: parseInt(e.target.value) || 0 })} />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {Object.entries(p.courses).map(([cK, cD]) => (
           <div key={cK} style={sc}>
             <div style={{ fontSize: "15px", fontWeight: "800", color: G.primary, marginBottom: "12px" }}>⛳ {p.courseNames[cK]}</div>
-            {["s1", "s2"].map(sn => (
+            {["s1", "s2", "s3", "s4"].map(sn => (
               <div key={sn} style={{ marginBottom: "16px" }}>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: "#555", marginBottom: "8px", background: "#f5f5f5", padding: "8px 12px", borderRadius: "8px" }}>{sn === "s1" ? "시즌1" : "시즌2"} ({p.seasons[sn]})</div>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: "#555", marginBottom: "8px", background: "#f5f5f5", padding: "8px 12px", borderRadius: "8px" }}>{sn === "s1" ? "시즌1" : sn === "s2" ? "시즌2" : sn === "s3" ? "시즌3" : "시즌4"} ({p.seasons[sn]})</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                   <thead><tr style={{ background: "#f9f9f9" }}><th style={{ padding: "8px", textAlign: "left" }}>요일</th><th style={{ padding: "8px", textAlign: "right" }}>1부</th><th style={{ padding: "8px", textAlign: "right" }}>2부</th></tr></thead>
                   <tbody>{["weekday", "friday", "saturday", "sunday"].map(dt => (
