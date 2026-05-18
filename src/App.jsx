@@ -2063,7 +2063,8 @@ export default function DomesticGolf() {
 
           {/* 이용자별 요금 표기 (4인 단체에서 2인은 얼마, 2인은 얼마 다르게 표기할 때) */}
           <div style={{ marginTop: "10px", padding: "12px 14px", background: "#fff8e1", borderRadius: "8px", border: "1px solid #f0c040" }}>
-            <div style={{ fontSize: "11px", fontWeight: "700", color: "#8b6914", marginBottom: "8px" }}>👥 이용자별 요금 표기 (선택) — 비워두면 기본 1인 요금만 표시</div>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "#8b6914", marginBottom: "4px" }}>👥 이용자별 요금 표기 (선택) — 비워두면 기본 1인 요금만 표시</div>
+            <div style={{ fontSize: "10px", color: "#a08540", marginBottom: "10px", lineHeight: "1.5" }}>💡 팁: 라벨에 괄호 사용 → 자동으로 골드 태그로 변환됨 (예: "2인 (숙박 쿠폰 적용)")</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               <div>
                 <label style={{ ...lbl, fontSize: "11px" }}>그룹 1 라벨</label>
@@ -2135,19 +2136,63 @@ export default function DomesticGolf() {
 
           {/* ③ 요금 + 계좌 + 안내문구 */}
           <div style={{ background: "#fff", margin: "8px 12px 0", borderRadius: "10px", padding: "14px 16px" }}>
-            {/* 요금 표시: 그룹2가 입력되면 두 줄, 아니면 단일 표시 */}
-            <div style={{ paddingBottom: "11px", borderBottom: "1px solid #f0f0f0", marginBottom: "11px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: (qGroup2Label && qGroup2Price) ? "8px" : "0" }}>
-                <div style={{ fontSize: "15px", color: "#222", fontWeight: "800" }}>{qGroup1Label || "1인 요금"}</div>
-                <div style={{ fontSize: "24px", fontWeight: "900", color: "#c0392b", letterSpacing: "-0.5px", lineHeight: 1 }}>₩{fmt(displayPrice)}</div>
-              </div>
-              {(qGroup2Label && qGroup2Price) && (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <div style={{ fontSize: "15px", color: "#222", fontWeight: "800" }}>{qGroup2Label}</div>
-                  <div style={{ fontSize: "24px", fontWeight: "900", color: "#c0392b", letterSpacing: "-0.5px", lineHeight: 1 }}>₩{fmt(parseInt(String(qGroup2Price).replace(/,/g,"")) || 0)}</div>
+            {/* 요금 표시: 그룹별 카드 디자인 */}
+            {(() => {
+              // 라벨에서 괄호 부분을 자동으로 골드 태그로 분리
+              const parseLabel = (label) => {
+                const match = (label || "").match(/^(.+?)\s*\((.+?)\)\s*$/);
+                if (match) return { main: match[1].trim(), note: match[2].trim() };
+                return { main: label || "", note: "" };
+              };
+              const g1 = parseLabel(qGroup1Label || "1인 요금");
+              const g2 = parseLabel(qGroup2Label || "");
+              const hasG2 = qGroup2Label && qGroup2Price;
+              const g2Price = parseInt(String(qGroup2Price).replace(/,/g,"")) || 0;
+
+              const PriceCard = ({ main, note, price }) => (
+                <div style={{
+                  flex: 1,
+                  padding: "14px 16px",
+                  background: note ? "linear-gradient(135deg, #fffdf5 0%, #fef8e0 100%)" : "#fafaf7",
+                  borderRadius: "10px",
+                  border: note ? "1.5px solid #e8c96e" : "1px solid #e8e6e0",
+                  boxShadow: note ? "0 2px 8px rgba(232,201,110,0.15)" : "none",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", flexWrap: "wrap" }}>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#222" }}>{main}</div>
+                    {note && (
+                      <div style={{
+                        fontSize: "10px",
+                        fontWeight: "800",
+                        color: "#fff",
+                        background: "linear-gradient(135deg, #c9a942 0%, #b8941f 100%)",
+                        padding: "3px 9px",
+                        borderRadius: "12px",
+                        letterSpacing: "0.3px",
+                        boxShadow: "0 1px 3px rgba(184,148,31,0.3)",
+                      }}>🎫 {note}</div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: "24px", fontWeight: "900", color: "#c0392b", letterSpacing: "-0.5px", lineHeight: 1 }}>
+                    ₩{fmt(price)}
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+
+              return (
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: hasG2 ? "1fr 1fr" : "1fr",
+                  gap: "10px",
+                  paddingBottom: "11px",
+                  borderBottom: "1px solid #f0f0f0",
+                  marginBottom: "11px"
+                }}>
+                  <PriceCard main={g1.main} note={g1.note} price={displayPrice} />
+                  {hasG2 && <PriceCard main={g2.main} note={g2.note} price={g2Price} />}
+                </div>
+              );
+            })()}
             {/* 계좌 + 예약금 + 안내문구 */}
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               {qAccount && (
