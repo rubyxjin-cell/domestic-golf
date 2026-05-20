@@ -146,6 +146,7 @@ const PRODUCT_LIST = [
 ];
 
 const AGTS = [
+  { id: "choice",   name: "초이스골프",         pw: "3791" },
   { id: "elite",    name: "엘리트골프",       pw: "4432" },
   { id: "sangsang", name: "상상로드투어",      pw: "5979" },
   { id: "golf4ppl", name: "골프와사람들",      pw: "8499" },
