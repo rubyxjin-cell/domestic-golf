@@ -86,6 +86,7 @@ const toExcelSerial = (ds) => {
 };
 
 const PW = "0090";
+const ADMIN_PW = "choice2026";
 const RL = { IC: "인터컨티넨탈 호텔", HIR: "홀리데이인 호텔", HIS33: "홀리데이인 스위트 콘도 33평형", NONE: "호텔 없음 (골프만)" };
 const rmLabel = k => RL[k] || k;
 const DN = ["일", "월", "화", "수", "목", "금", "토"];
@@ -296,6 +297,7 @@ const defaultCourses = (pkgKey, baseCombo) => {
 
 export default function DomesticGolf() {
   const [authed, setAuthed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [pw, setPw] = useState("");
   const [pwErr, setPwErr] = useState(false);
   const [tab, setTab] = useState("calc");
@@ -1702,10 +1704,10 @@ export default function DomesticGolf() {
         <div style={{ fontSize: "52px", marginBottom: "8px" }}>⛳</div>
         <div style={{ fontSize: "24px", fontWeight: "900", color: G.primary, marginBottom: "4px" }}>국내골프 견적시스템</div>
         <div style={{ fontSize: "12px", color: "#aaa", marginBottom: "28px", letterSpacing: "2px" }}>CHOICE GOLF</div>
-        <input type="password" placeholder="비밀번호" value={pw} onChange={e => { setPw(e.target.value); setPwErr(false); }} onKeyDown={e => { if (e.key === "Enter") { if (pw === PW) { setAuthed(true); setPwErr(false); } else { setPwErr(true); } } }}
+        <input type="password" placeholder="비밀번호" value={pw} onChange={e => { setPw(e.target.value); setPwErr(false); }} onKeyDown={e => { if (e.key === "Enter") { if (pw === ADMIN_PW) { setAuthed(true); setIsAdmin(true); setPwErr(false); } else if (pw === PW) { setAuthed(true); setIsAdmin(false); setPwErr(false); } else { setPwErr(true); } } }}
           style={{ ...inp, textAlign: "center", marginBottom: "14px", border: pwErr ? "2px solid #e74c3c" : "1px solid #ddd", fontSize: "16px" }} />
         {pwErr && <div style={{ color: "#e74c3c", fontSize: "13px", marginBottom: "10px" }}>비밀번호가 틀립니다</div>}
-        <button onClick={() => { if (pw === PW) { setAuthed(true); setPwErr(false); } else { setPwErr(true); } }} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: G.primary, color: "#fff", fontWeight: "800", fontSize: "16px", cursor: "pointer" }}>로그인</button>
+        <button onClick={() => { if (pw === ADMIN_PW) { setAuthed(true); setIsAdmin(true); setPwErr(false); } else if (pw === PW) { setAuthed(true); setIsAdmin(false); setPwErr(false); } else { setPwErr(true); } }} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: G.primary, color: "#fff", fontWeight: "800", fontSize: "16px", cursor: "pointer" }}>로그인</button>
         <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid #eee", fontSize: "11px", color: "#888", lineHeight: "1.6" }}>
           <div style={{ fontWeight: "700", color: "#666", marginBottom: "3px" }}>여행사전용 네이트온 문의</div>
           <div style={{ color: G.primary, fontWeight: "700", fontSize: "13px", letterSpacing: "0.3px" }}>golfchoice@nate.com</div>
@@ -2504,7 +2506,7 @@ export default function DomesticGolf() {
     <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #f0f7f3 0%, #f7f9f8 100%)", fontFamily: "'Pretendard','Apple SD Gothic Neo',sans-serif" }}>
       <div style={{ background: G.primary, padding: isMob ? "0 4px" : "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 2px 16px rgba(0,0,0,0.18)" }}>
         <div style={{ display: "flex", gap: "0px", flex: 1 }}>
-          {[["calc", "알펜시아 요금", "요금"], ["quote", "고객 견적서", "견적서"], ["agt", "AGT 예약관리", "예약관리"], ["setting", "⚙️ 설정", "⚙️"]].map(([k, l, lm]) => (
+          {[["calc", "알펜시아 요금", "요금"], ["quote", "고객 견적서", "견적서"], ["agt", "AGT 예약관리", "예약관리"], ...(isAdmin ? [["setting", "⚙️ 설정", "⚙️"]] : [])].map(([k, l, lm]) => (
             <button key={k} onClick={() => setTab(k)} style={{ flex: isMob ? 1 : "none", padding: isMob ? "14px 4px" : "16px 20px", borderRadius: "0", border: "none", borderBottom: tab === k ? "3px solid #fff" : "3px solid transparent", cursor: "pointer", background: "transparent", color: tab === k ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: tab === k ? "800" : "600", fontSize: isMob ? "11px" : "13px", whiteSpace: "nowrap", transition: "all 0.15s", letterSpacing: "0px" }}>{isMob ? lm : l}</button>
           ))}
         </div>
@@ -2514,7 +2516,7 @@ export default function DomesticGolf() {
         {tab === "calc" && renderCalc()}
         {tab === "quote" && renderQuote()}
         {tab === "agt" && renderAgt()}
-        {tab === "setting" && renderAdmin()}
+        {tab === "setting" && isAdmin && renderAdmin()}
 
       </div>
     </div>
