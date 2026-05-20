@@ -1706,6 +1706,10 @@ export default function DomesticGolf() {
           style={{ ...inp, textAlign: "center", marginBottom: "14px", border: pwErr ? "2px solid #e74c3c" : "1px solid #ddd", fontSize: "16px" }} />
         {pwErr && <div style={{ color: "#e74c3c", fontSize: "13px", marginBottom: "10px" }}>비밀번호가 틀립니다</div>}
         <button onClick={() => { if (pw === PW) { setAuthed(true); setPwErr(false); } else { setPwErr(true); } }} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: G.primary, color: "#fff", fontWeight: "800", fontSize: "16px", cursor: "pointer" }}>로그인</button>
+        <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid #eee", fontSize: "11px", color: "#888", lineHeight: "1.6" }}>
+          <div style={{ fontWeight: "700", color: "#666", marginBottom: "3px" }}>여행사전용 네이트온 문의</div>
+          <div style={{ color: G.primary, fontWeight: "700", fontSize: "13px", letterSpacing: "0.3px" }}>golfchoice@nate.com</div>
+        </div>
       </div>
     </div>
   );
