@@ -334,7 +334,7 @@ export default function DomesticGolf() {
   const [customSell, setCustomSell] = useState("");
   const [qCustomPrice, setQCustomPrice] = useState(""); // 고객 요금 직접입력
   const [qDeposit, setQDeposit] = useState("100,000");   // 예약금
-  const [qManager, setQManager] = useState("초이스골프 최진우");   // 담당자
+  const [qManager, setQManager] = useState("최진우");   // 담당자
   const [qManagerPhone, setQManagerPhone] = useState("010-5897-1053"); // 담당자 연락처
   const [downloading, setDownloading] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -348,7 +348,7 @@ export default function DomesticGolf() {
   const [qGroup2Price, setQGroup2Price] = useState("");  // 그룹2 1인 금액
   const [qTees, setQTees] = useState(["","","",""]); // 라운드별 티오프시간
   const qTee1 = qTees[0]; const qTee2 = qTees[1]; // 하위호환
-  const [qAccount, setQAccount] = useState("신한은행 140-015-261327 ㈜초이스골프");
+  const [qAccount, setQAccount] = useState("신한은행 140-015-261327");
   const [qNotice1On, setQNotice1On] = useState(false); // 티오프 홀딩 문구
   const [qNotice2On, setQNotice2On] = useState(false); // 가견적 문구
   const [qNotice1, setQNotice1] = useState("해당 티오프는 견적서 발송일 기준 가능한 티오프이며, 1일 이내 홀딩 가능합니다.");
@@ -2127,21 +2127,7 @@ export default function DomesticGolf() {
         </div>
 
         {/* ── 견적서 본문 (JPG 저장 영역) ── */}
-        <div ref={previewRef} style={{ background: "#f4f6f4", fontFamily: "'Pretendard','Apple SD Gothic Neo','맑은 고딕',sans-serif", width: "100%", boxSizing: "border-box", padding: "0 0 14px 0" }}>
-
-          {/* ① 상단 헤더 */}
-          <div style={{ background: G.primary, padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ width: "3px", height: "28px", background: "rgba(255,255,255,0.35)", borderRadius: "2px" }} />
-              <div>
-                <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.45)", letterSpacing: "2px", marginBottom: "2px" }}>ALPENSIA OFFICIAL PARTNER</div>
-                <div style={{ fontSize: "15px", fontWeight: "900", color: "#fff", letterSpacing: "-0.3px" }}>㈜초이스골프</div>
-              </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.55)", letterSpacing: "0.5px" }}>알펜시아 골프&amp;리조트 견적서</div>
-            </div>
-          </div>
+        <div ref={previewRef} style={{ background: "#f4f6f4", fontFamily: "'Pretendard','Apple SD Gothic Neo','맑은 고딕',sans-serif", width: "100%", boxSizing: "border-box", padding: "8px 0 14px 0" }}>
 
           {/* ② 수신/발신/날짜 한줄 */}
           <div style={{ background: "#fff", margin: "8px 12px 0", borderRadius: "10px", overflow: "hidden", display: "grid", gridTemplateColumns: "1fr auto 1fr" }}>
