@@ -1762,7 +1762,7 @@ export default function DomesticGolf() {
             <span style={{ fontSize: "14px", fontWeight: "700", color: "#888" }}>2026년</span>
             <select value={month} onChange={e => { setMonth(parseInt(e.target.value)); setDay(0); }} style={{ ...inp, width: "auto", padding: "10px 16px", fontWeight: "700", fontSize: "15px" }}>
               <option value={0}>월</option>
-              {[1, 2, 3, 4, 5, 6].filter(m => {
+              {[1, 2, 3, 4, 5, 6, 7, 8].filter(m => {
                 const today = new Date(); today.setHours(0,0,0,0);
                 const lastDayOfMonth = new Date(2026, m, 0);
                 return lastDayOfMonth >= today;
