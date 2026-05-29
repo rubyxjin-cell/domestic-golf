@@ -540,6 +540,7 @@ export default function DomesticGolf() {
           gfPpl: Number(r.gf_ppl) || 0, bfPpl: Number(r.bf_ppl) || 0,
           memo: r.memo, createdAt: r.created_at,
           resType: r.res_type || "confirmed",
+          faxSentAt: r.fax_sent_at || null,
         })));
       })
       .catch(() => setReservations([]))
@@ -698,9 +699,10 @@ export default function DomesticGolf() {
       const teeTime = teeTimes[i] || "";
       // 홀딩시간: 티오프 시간만 표기 (부 표시 제거)
       const holdingLabel = teeTime;
-      // 조식 포함 여부: 일차별 설정 우선, 없으면 자동 (1부 AND i>0 AND bfIncluded)
-      const autoBf = g.teeIdx === 0 && i > 0 && r.bfIncluded !== false;
-      const hasBf = bfDays[i] !== undefined && bfDays[i] !== null ? !!bfDays[i] : autoBf;
+      // 조식 포함 여부: 전체 "조식 포함" 토글이 최우선. 끄면 무조건 조식 X.
+      const autoBf = g.teeIdx === 0 && i > 0;
+      const perDayBf = bfDays[i] !== undefined && bfDays[i] !== null ? !!bfDays[i] : autoBf;
+      const hasBf = (r.bfIncluded !== false) && perDayBf;
       // 팩스용 그린피 (원가) = 계산된 그린피 - 커미션
       const gfOriginal = Math.max(0, g.gf - COMMISSION);
       setV("A" + row, toExcelSerial(g.ds));
@@ -840,6 +842,12 @@ export default function DomesticGolf() {
         });
         const data = await resp.json();
         if (data.ok) {
+          // 🆕 발송완료 시각 저장 (DB + 화면 상태)
+          const sentAt = new Date().toISOString();
+          sbFetch("PATCH", "reservations?id=eq." + r.id, { fax_sent_at: sentAt }).catch(() => {});
+          const updated = { ...r, faxSentAt: sentAt };
+          setReservations(p => p.map(x => x.id === r.id ? updated : x));
+          setSelRes(updated);
           alert(`✅ 팩스 발송 완료\n\n수신: ${data.to}\nFile ID: ${data.fileId}`);
         } else {
           alert(`⚠️ 발송 실패\n\n${data.error || "알 수 없는 오류"}`);
@@ -935,6 +943,11 @@ export default function DomesticGolf() {
           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
             <button onClick={() => { setAgtTab("list"); setSelRes(null); setShowDeleteConfirm(false); setDeletePw(""); setDeletePwErr(false); }} style={{ padding: "6px 12px", borderRadius: "8px", border: "1px solid #ddd", background: "#fff", cursor: "pointer", fontSize: "13px", whiteSpace: "nowrap" }}>← 목록</button>
             <div style={{ fontSize: "16px", fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>📄 인보이스</div>
+            {selRes?.faxSentAt && (
+              <span style={{ fontSize: "12px", fontWeight: "800", background: "#e8f5e9", color: "#2e7d52", padding: "5px 10px", borderRadius: "20px", border: "1px solid #2e7d52", whiteSpace: "nowrap" }}>
+                📠 발송완료 ({new Date(selRes.faxSentAt).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" })})
+              </span>
+            )}
             <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: G.textMid, cursor: "pointer", marginLeft: "4px", whiteSpace: "nowrap" }}>
               <input type="checkbox" checked={showTeeSur} onChange={e => setShowTeeSur(e.target.checked)} style={{ accentColor: G.primary }} />
               시간추가금
@@ -1220,9 +1233,10 @@ export default function DomesticGolf() {
                   const bfKey = "bfDay"+(i+1);
                   const rc = resForm[rcKey] || "prv";
                   const tt = resForm[ttKey] ?? (i===0?1:0);
-                  // 조식 기본값: 첫날 X, 이후 1부면 O (수동 override 가능)
-                  const autoBf = i > 0 && tt === 0 && resForm.bfIncluded !== false;
-                  const bfChecked = resForm[bfKey] !== undefined ? !!resForm[bfKey] : autoBf;
+                  // 조식 기본값: 첫날 X, 이후 1부면 O (수동 override 가능). 전체 "조식 포함" 끄면 무조건 X.
+                  const autoBf = i > 0 && tt === 0;
+                  const perDayBf = resForm[bfKey] !== undefined ? !!resForm[bfKey] : autoBf;
+                  const bfChecked = (resForm.bfIncluded !== false) && perDayBf;
                   const updateCombo = (newRc) => {
                     const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
                     return { [rcKey]: newRc, combo: arr.join("|") };
@@ -1348,8 +1362,9 @@ export default function DomesticGolf() {
                   const bfKey = "bfDay"+(i+1);
                   const rc = resForm[rcKey] || "prv";
                   const tt = resForm[ttKey] ?? (i===0?1:0);
-                  const autoBf = i > 0 && tt === 0 && resForm.bfIncluded !== false;
-                  const bfChecked = resForm[bfKey] !== undefined ? !!resForm[bfKey] : autoBf;
+                  const autoBf = i > 0 && tt === 0;
+                  const perDayBf = resForm[bfKey] !== undefined ? !!resForm[bfKey] : autoBf;
+                  const bfChecked = (resForm.bfIncluded !== false) && perDayBf;
                   const updateCombo = (newRc) => {
                     const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
                     return { [rcKey]: newRc, combo: arr.join("|") };
@@ -1549,7 +1564,10 @@ export default function DomesticGolf() {
                         {isNew && <span style={{ display: "inline-block", marginLeft: "4px", fontSize: "9px", fontWeight: "800", background: "#f39c12", color: "#fff", padding: "1px 5px", borderRadius: "3px", verticalAlign: "middle", letterSpacing: "0.3px" }}>NEW</span>}
                       </span>
                       <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.nights}</span>
-                      <span style={{ fontWeight: "700", color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.repName}</span>
+                      <span style={{ fontWeight: "700", color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {r.repName}
+                        {r.faxSentAt && <span title="팩스 발송완료" style={{ marginLeft: "4px" }}>📠</span>}
+                      </span>
                       <span style={{ color: G.textMid, fontSize: "12px", whiteSpace: "nowrap" }}>{r.phone}</span>
                       <span style={{ fontSize: "11px", color: "#e67e22", fontWeight: "700", whiteSpace: "nowrap" }}>{r.tee1 || "-"}</span>
                       <span style={{ fontSize: "11px", color: G.accent, fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{productName}</span>
