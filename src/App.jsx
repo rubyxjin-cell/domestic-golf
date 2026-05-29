@@ -669,6 +669,8 @@ export default function DomesticGolf() {
 
     // 공유수식 셀 초기화 (템플릿의 수식 충돌 방지)
     ["K13","K14","J21","J22"].forEach(a => setV(a, 0));
+    // 🆕 골프 조식칸(J11~J14) 비우기 - 조식 있는 행만 아래에서 다시 채움 (템플릿 잔존값 제거)
+    ["J11","J12","J13","J14"].forEach(a => setV(a, ""));
 
     // 여행사 + 신청일
     setV("B5", FAX_CONFIG.agency.name);
