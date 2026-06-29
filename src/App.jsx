@@ -151,6 +151,7 @@ const AGTS = [
   { id: "sangsang", name: "상상로드투어",      pw: "5979" },
   { id: "golf4ppl", name: "골프와사람들",      pw: "8499" },
   { id: "si",       name: "시골프투어",        pw: "2000" },
+  { id: "dmg",      name: "DMG골프",          pw: "3120" },
 ];
 
 const DEF = {
