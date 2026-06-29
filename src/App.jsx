@@ -146,12 +146,12 @@ const PRODUCT_LIST = [
 ];
 
 const AGTS = [
-  { id: "choice",   name: "초이스골프",         pw: "3791" },
-  { id: "elite",    name: "엘리트골프",       pw: "4432" },
-  { id: "sangsang", name: "상상로드투어",      pw: "5979" },
-  { id: "golf4ppl", name: "골프와사람들",      pw: "8499" },
-  { id: "si",       name: "시골프투어",        pw: "2000" },
-  { id: "dmg",      name: "DMG골프",          pw: "3120" },
+  { id: "choice",   name: "초이스골프",         pw: "3791", color: "#2c3e50" },
+  { id: "elite",    name: "엘리트골프",       pw: "4432", color: "#2980b9" },
+  { id: "sangsang", name: "상상로드투어",      pw: "5979", color: "#16a085" },
+  { id: "golf4ppl", name: "골프와사람들",      pw: "8499", color: "#8e44ad" },
+  { id: "si",       name: "시골프투어",        pw: "2000", color: "#d35400" },
+  { id: "dmg",      name: "DMG골프",          pw: "3120", color: "#c0392b" },
 ];
 
 const DEF = {
@@ -502,7 +502,7 @@ export default function DomesticGolf() {
   useEffect(() => {
     if (!agtAuthed) return;
     setAgtResLoading(true);
-    sbFetch("GET", "reservations?agt_id=eq." + agtAuthed.id + "&order=dep_date.asc")
+    sbFetch("GET", (agtAuthed.id === "choice" ? "reservations?" : "reservations?agt_id=eq." + agtAuthed.id + "&") + "order=dep_date.asc")
       .then(data => {
         setReservations((data || []).map(r => ({
           id: r.id,
@@ -1555,12 +1555,22 @@ export default function DomesticGolf() {
                 const confirmDates = agtResTypeTab === "tentative" ? getConfirmDates(r.depDate, r.combo) : [];
                 // 🆕 신규 예약 표시 (등록 후 24시간 이내)
                 const isNew = r.createdAt && (Date.now() - new Date(r.createdAt).getTime()) < 86400000;
+                // 🆕 초이스골프(마스터) 로그인 시 어느 AGT 예약인지 표시
+                const isMaster = agtAuthed?.id === "choice";
+                const agtInfo = AGTS.find(a => a.id === r.agtId);
                 return (
                   <div key={r.id} onClick={() => { setSelRes(r); setAgtTab("invoice"); setEditMode(false); setShowEditPw(false); setEditPw(""); setShowDeleteConfirm(false); }}
-                    style={{ padding: "10px 12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, transition: "background 0.15s", background: isNew ? "#FFF8E1" : "transparent", borderLeft: isNew ? "3px solid #f39c12" : "3px solid transparent" }}
+                    style={{ padding: "10px 12px", borderRadius: "8px", cursor: "pointer", borderBottom: "1px solid " + G.border, transition: "background 0.15s", background: isNew ? "#FFF8E1" : "transparent", borderLeft: isMaster && agtInfo ? "3px solid " + agtInfo.color : (isNew ? "3px solid #f39c12" : "3px solid transparent") }}
                     onMouseEnter={e => e.currentTarget.style.background = isNew ? "#FFF3CD" : G.lighter}
                     onMouseLeave={e => e.currentTarget.style.background = isNew ? "#FFF8E1" : ""}
                   >
+                    {isMaster && agtInfo && (
+                      <div style={{ marginBottom: "5px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "800", color: "#fff", background: agtInfo.color, padding: "2px 9px", borderRadius: "4px", letterSpacing: "0.3px" }}>
+                          {agtInfo.name}
+                        </span>
+                      </div>
+                    )}
                     <div style={{ display: "grid", gridTemplateColumns: "80px 48px 90px 100px 70px 80px 1fr 44px", gap: "6px", fontSize: "13px", alignItems: "center" }}>
                       <span style={{ fontWeight: "800", color: G.primary, whiteSpace: "nowrap" }}>
                         {r.depDate ? fmtD(r.depDate) : "-"}
