@@ -421,7 +421,9 @@ export default function DomesticGolf() {
     if (ds < (prod?.seasonCut12 || "2026-09-28")) return "s12";
     return "s13";
   };
-  const dv = date && date <= "2026-09-30";
+  // 요금표 적용 한계: 마지막 라운드일이 10/1을 넘으면 요금 미정 구간 → 계산 차단
+  // (1박2일: ~9/30 출발, 2박3일: ~9/29 출발, 3박4일: ~9/28 출발)
+  const dv = date && addDays(date, (pkgRounds || 2) - 1) <= "2026-10-01";
 
   // 객실 요금 조회 (연휴/연휴전일 처리 포함)
   const getRmRate = (rmD2, ds) => {
@@ -1821,7 +1823,7 @@ export default function DomesticGolf() {
             <span style={{ fontSize: "14px", fontWeight: "700", color: "#888" }}>2026년</span>
             <select value={month} onChange={e => { setMonth(parseInt(e.target.value)); setDay(0); }} style={{ ...inp, width: "auto", padding: "10px 16px", fontWeight: "700", fontSize: "15px" }}>
               <option value={0}>월</option>
-              {[1, 2, 3, 4, 5, 6, 7, 8].filter(m => {
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].filter(m => {
                 const today = new Date(); today.setHours(0,0,0,0);
                 const lastDayOfMonth = new Date(2026, m, 0);
                 return lastDayOfMonth >= today;
@@ -1854,7 +1856,7 @@ export default function DomesticGolf() {
               })}
             </div>
           )}
-          {date && !dv && <div style={{ marginTop: "10px", padding: "10px", background: "#fdecea", borderRadius: "8px", fontSize: "13px", color: "#c0392b", fontWeight: "700" }}>⚠️ 요금표는 9/30 출발까지 적용됩니다.</div>}
+          {date && !dv && <div style={{ marginTop: "10px", padding: "10px", background: "#fdecea", borderRadius: "8px", fontSize: "13px", color: "#c0392b", fontWeight: "700" }}>⚠️ 요금표는 10/1 라운딩까지 적용됩니다. (1박2일 9/30 · 2박3일 9/29 · 3박4일 9/28 출발까지)</div>}
         </div>
 
         {/* 라운드별 코스 + 티타임 선택 */}
