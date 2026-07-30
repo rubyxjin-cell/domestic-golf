@@ -1656,25 +1656,30 @@ export default function DomesticGolf() {
     if (!pkg) return null;
     const rounds = Array.from({ length: pkg.rounds }, (_, i) => {
       const ds = addDays(date, i);
-      const teeIdx = roundTees[i] ?? DEFAULT_TEE[i] ?? 0;
       const courseKey = roundCourses[i] ?? "prv";
-      const course = prod.courses[courseKey];
       const ss = season(ds);
+      if (courseKey === "none") {
+        return { ds, day: i + 1, rest: true, teeIdx: 0, courseKey, cn: "", gf: 0, rawGf: 0, teeSur: 0, ss };
+      }
+      const teeIdx = roundTees[i] ?? DEFAULT_TEE[i] ?? 0;
+      const course = prod.courses[courseKey];
       const dt = getGfDayType(ds);
       const isD1 = i === 0;
       const teeSur = getTeeSur(qTees[i] || "", isD1);
       const tee2Sur = (!isD1 && teeIdx === 1) ? 20000 : 0;
       const rawGf = (course?.[ss]?.[dt]?.[teeIdx] || 0) + teeSur + tee2Sur;
       const gf = rawGf + 2500;
-      return { ds, teeIdx, courseKey, cn: prod.courseNames[courseKey], gf, rawGf, teeSur, ss };
+      return { ds, day: i + 1, rest: false, teeIdx, courseKey, cn: prod.courseNames[courseKey], gf, rawGf, teeSur, ss };
     });
+    const golfRounds = rounds.filter(r => !r.rest).length; // 실제 라운딩 횟수 (휴식일 제외)
     const rawGfTotal = rounds.reduce((s, r) => s + r.rawGf, 0);
     const gfTotal = rounds.reduce((s, r) => s + r.gf, 0);
     const ss1 = season(date);
     const bfRate = (prod.breakfast?.[ss1] ?? prod.breakfast) || 0;
     let bfNights = 0;
     for (let i = 0; i < pkg.nights; i++) {
-      if ((rounds[i + 1]?.teeIdx ?? 0) === 0) bfNights++;
+      const next = rounds[i + 1];
+      if (next && !next.rest && next.teeIdx === 0) bfNights++;
     }
     const bfPP = bfRate * bfNights;
     // 객실 그룹별 1인 요금 (ppl=0이면 occ로 자동계산)
@@ -1690,17 +1695,17 @@ export default function DomesticGolf() {
       }
       rmPP = Math.ceil(rmPP);
       const sellPPg = gfTotal + rmPP + bfPP;
-      const offPPg = rawGfTotal + rmPP + bfPP + (10000 * pkg.rounds) + (validRmGroups.length === 0 ? 0 : 5000 * pkg.nights);
+      const offPPg = rawGfTotal + rmPP + bfPP + (10000 * golfRounds) + (validRmGroups.length === 0 ? 0 : 5000 * pkg.nights);
       return { type: g.type, cnt: g.cnt, occ, ppl: g.ppl||0, groupPpl: effectivePpl, rmPP, label: rmLabel(g.type), sellPP: sellPPg, offPP: offPPg };
     });
     const rmPP = noHotel ? 0 : (rmGroupsData[0]?.rmPP || 0);
     const rawCostPP = rawGfTotal + rmPP + bfPP;
     const costPP = gfTotal + rmPP + bfPP;
-    const offPP = rawCostPP + (10000 * pkg.rounds) + (noHotel ? 0 : 5000 * pkg.nights);
-    const sellPP = rawCostPP + (2500 * pkg.rounds);
-    const agtMgn = (7500 * pkg.rounds) + (noHotel ? 0 : 5000 * pkg.nights);
-    const choiceMgn = 2500 * pkg.rounds;
-    return { rounds, rawGfTotal, gfTotal, rmPP, rmGroupsData, bfPP, bfNights, rawCostPP, costPP, offPP, sellPP, agtMgn, choiceMgn };
+    const offPP = rawCostPP + (10000 * golfRounds) + (noHotel ? 0 : 5000 * pkg.nights);
+    const sellPP = rawCostPP + (2500 * golfRounds);
+    const agtMgn = (7500 * golfRounds) + (noHotel ? 0 : 5000 * pkg.nights);
+    const choiceMgn = 2500 * golfRounds;
+    return { rounds, golfRounds, rawGfTotal, gfTotal, rmPP, rmGroupsData, bfPP, bfNights, rawCostPP, costPP, offPP, sellPP, agtMgn, choiceMgn };
   })();
   const finalSell = customSell ? parseInt(customSell, 10) : (calc?.sellPP || 0);
 
@@ -1775,8 +1780,10 @@ export default function DomesticGolf() {
   const cColor = t => t === "pub" ? "#27ae60" : "#2980b9";
   const cBg = t => t === "pub" ? "#eafaf1" : "#ebf5fb";
 
+  // 실제 라운딩 횟수 (휴식일 제외) — renderCalc, renderQuote 공용
+  const golfRoundsCnt = Array.from({ length: pkgRounds }, (_, i) => roundCourses[i] ?? "prv").filter(c => c !== "none").length;
   // incl/excl — renderCalc, renderQuote 공용
-  const incl = prod ? ["골프 그린피 " + (pkgRounds * 18) + "홀 (18홀 x " + pkgRounds + "라운드)"] : [];
+  const incl = prod ? ["골프 그린피 " + (golfRoundsCnt * 18) + "홀 (18홀 x " + golfRoundsCnt + "라운드)"] : [];
   if (prod && validRmGroups.length > 0) validRmGroups.forEach(g => { const occ = prod.rooms[g.type]?.occ||4; incl.push("숙박 " + pkgNights + "박 — " + rmLabel(g.type) + " " + g.cnt + "실 (" + (g.cnt*occ) + "명)"); });
   if (prod && bfOn && (calc?.bfPP ?? 0) > 0) incl.push("클럽조식 (해장국+커피)");
   // 선택된 코스 종류 파악
@@ -1845,7 +1852,8 @@ export default function DomesticGolf() {
             <div style={{ display: "flex", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
               {Array.from({ length: pkgRounds }, (_, i) => {
                 const ds = addDays(date, i);
-                const teeLabel = (roundTees[i] ?? DEFAULT_TEE[i] ?? 0) === 1 ? "오후 2부" : "오전 1부";
+                const isRest = (roundCourses[i] ?? "prv") === "none";
+                const teeLabel = isRest ? "휴식 (골프 없음)" : ((roundTees[i] ?? DEFAULT_TEE[i] ?? 0) === 1 ? "오후 2부" : "오전 1부");
                 const colors = [G.light, "#e8f5ee", "#e0f0ea", "#d8ebe3"];
                 return (
                   <div key={i} style={{ flex: 1, minWidth: "70px", padding: "8px 6px", borderRadius: "8px", background: colors[i % 4], textAlign: "center" }}>
@@ -1868,24 +1876,32 @@ export default function DomesticGolf() {
               <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", padding: "10px 12px", background: G.surface, borderRadius: "10px", border: "1px solid " + G.border }}>
                 <div style={{ fontWeight: "800", fontSize: "13px", color: G.primary, minWidth: "44px" }}>{i+1}일차</div>
                 {ds && <div style={{ fontSize: "11px", color: "#888", minWidth: "60px" }}>{fmtD(ds)}</div>}
-                {/* 코스 선택 */}
+                {/* 코스 선택 (골프 없음 = 숙박만) */}
                 <div style={{ display: "flex", gap: "4px", flex: 1 }}>
-                  {["prv","pub"].map(ck => (
-                    <button key={ck} onClick={() => { const a = [...roundCourses]; a[i] = ck; setRoundCourses(a); }}
-                      style={{ flex: 1, padding: "6px 4px", borderRadius: "6px", border: roundCourses[i] === ck ? "2px solid " + G.primary : "1px solid #ddd", background: roundCourses[i] === ck ? G.primary : "#fff", fontWeight: "700", fontSize: "12px", color: roundCourses[i] === ck ? "#fff" : G.textSub, cursor: "pointer" }}>
-                      {ck === "prv" ? "회원제" : "대중제"}
-                    </button>
-                  ))}
+                  {[["prv","회원제"],["pub","대중제"],["none","골프 없음"]].map(([ck, cl]) => {
+                    const on = (roundCourses[i] ?? "prv") === ck;
+                    const isNone = ck === "none";
+                    return (
+                      <button key={ck} onClick={() => { const a = [...roundCourses]; a[i] = ck; setRoundCourses(a); }}
+                        style={{ flex: isNone ? "0 0 auto" : 1, padding: isNone ? "6px 8px" : "6px 4px", borderRadius: "6px", border: on ? (isNone ? "2px solid #95a5a6" : "2px solid " + G.primary) : "1px solid #ddd", background: on ? (isNone ? "#7f8c8d" : G.primary) : "#fff", fontWeight: "700", fontSize: "12px", color: on ? "#fff" : G.textSub, cursor: "pointer", whiteSpace: "nowrap" }}>
+                        {cl}
+                      </button>
+                    );
+                  })}
                 </div>
-                {/* 티타임 선택 */}
-                <div style={{ display: "flex", gap: "4px" }}>
-                  {[[0,"1부"],[1,"2부"]].map(([tv, tl]) => (
-                    <button key={tv} onClick={() => { const a = [...roundTees]; a[i] = tv; setRoundTees(a); }}
-                      style={{ padding: "6px 10px", borderRadius: "6px", border: (roundTees[i] ?? DEFAULT_TEE[i]) === tv ? "2px solid #e67e22" : "1px solid #ddd", background: (roundTees[i] ?? DEFAULT_TEE[i]) === tv ? "#fef3e2" : "#fff", fontWeight: "700", fontSize: "12px", color: (roundTees[i] ?? DEFAULT_TEE[i]) === tv ? "#e67e22" : "#aaa", cursor: "pointer" }}>
-                      {tl}
-                    </button>
-                  ))}
-                </div>
+                {/* 티타임 선택 (골프 없는 날은 숨김) */}
+                {(roundCourses[i] ?? "prv") !== "none" ? (
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    {[[0,"1부"],[1,"2부"]].map(([tv, tl]) => (
+                      <button key={tv} onClick={() => { const a = [...roundTees]; a[i] = tv; setRoundTees(a); }}
+                        style={{ padding: "6px 10px", borderRadius: "6px", border: (roundTees[i] ?? DEFAULT_TEE[i]) === tv ? "2px solid #e67e22" : "1px solid #ddd", background: (roundTees[i] ?? DEFAULT_TEE[i]) === tv ? "#fef3e2" : "#fff", fontWeight: "700", fontSize: "12px", color: (roundTees[i] ?? DEFAULT_TEE[i]) === tv ? "#e67e22" : "#aaa", cursor: "pointer" }}>
+                        {tl}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "11px", color: "#95a5a6", fontWeight: "700", padding: "6px 4px" }}>숙박만</div>
+                )}
               </div>
             );
           })}
@@ -1997,7 +2013,7 @@ export default function DomesticGolf() {
             <div style={{ padding: "14px 24px", background: "#f9fbfa" }}>
               <div style={{ fontSize: "11px", fontWeight: "700", color: "#aaa", marginBottom: "8px" }}>포함사항</div>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
-                <span style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>⛳ 골프 그린피 {pkgRounds * 18}홀</span>
+                <span style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>⛳ 골프 그린피 {golfRoundsCnt * 18}홀 ({golfRoundsCnt}라운드)</span>
                 {bfOn && (calc?.bfPP ?? 0) > 0 && <span style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>🥐 클럽조식</span>}
                 {calc.rmGroupsData.map((g, i) => <span key={i} style={{ padding: "5px 12px", borderRadius: "20px", background: "#fff", border: "1px solid #ddd", fontSize: "12px", fontWeight: "700", color: "#444" }}>🏨 {g.label} {g.cnt}실</span>)}
               </div>
@@ -2025,7 +2041,7 @@ export default function DomesticGolf() {
                     <div style={{ fontSize: "12px", fontWeight: "800", color: G.primary, marginBottom: "6px" }}>🏨 {g.label} 이용자 ({g.groupPpl}명)</div>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                       <tbody>
-                        {calc.rounds.map((r, i) => (<tr key={i}><td style={qTd}>⛳ {i+1}일차 {r.cn} {r.teeIdx===1?"2부":"1부"}</td><td style={qTdR}>₩{fmt(r.gf)}</td></tr>))}
+                        {calc.rounds.filter(r => !r.rest).map((r, i) => (<tr key={i}><td style={qTd}>⛳ {r.day}일차 {r.cn} {r.teeIdx===1?"2부":"1부"}</td><td style={qTdR}>₩{fmt(r.gf)}</td></tr>))}
                         <tr><td style={qTd}>🏨 {g.label} {pkgNights}박</td><td style={qTdR}>₩{fmt(g.rmPP)}</td></tr>
                         {calc.bfPP > 0 && <tr><td style={qTd}>🥐 조식</td><td style={qTdR}>₩{fmt(calc.bfPP)}</td></tr>}
                         <tr style={{ background: G.light }}><td style={{ ...qTd, fontWeight: "800", color: G.primary }}>AGT 입금가</td><td style={{ ...qTdR, color: G.primary, fontSize: "15px" }}>₩{fmt(g.sellPP)}</td></tr>
@@ -2035,7 +2051,7 @@ export default function DomesticGolf() {
                 )) : (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                     <tbody>
-                      {calc.rounds.map((r, i) => (<tr key={i}><td style={qTd}>⛳ {i+1}일차 {r.cn} {r.teeIdx===1?"2부":"1부"}</td><td style={qTdR}>₩{fmt(r.gf)}</td></tr>))}
+                      {calc.rounds.filter(r => !r.rest).map((r, i) => (<tr key={i}><td style={qTd}>⛳ {r.day}일차 {r.cn} {r.teeIdx===1?"2부":"1부"}</td><td style={qTdR}>₩{fmt(r.gf)}</td></tr>))}
                       {calc.bfPP > 0 && <tr><td style={qTd}>🥐 조식</td><td style={qTdR}>₩{fmt(calc.bfPP)}</td></tr>}
                       <tr style={{ background: G.light }}><td style={{ ...qTd, fontWeight: "800", color: G.primary }}>AGT 입금가</td><td style={{ ...qTdR, color: G.primary, fontSize: "15px" }}>₩{fmt(calc.sellPP)}</td></tr>
                     </tbody>
@@ -2126,12 +2142,17 @@ export default function DomesticGolf() {
             <div>
               <div style={{ fontSize: "10px", fontWeight: "700", color: G.textMid, marginBottom: "8px" }}>⏰ 티오프 시간</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(" + Math.min(pkgRounds, 4) + ", 1fr)", gap: "6px" }}>
-                {Array.from({ length: pkgRounds }, (_, i) => (
-                  <div key={i}>
-                    <label style={{ ...lbl, fontSize: "11px" }}>{i+1}일차</label>
-                    <input type="text" style={inp} value={qTees[i] || ""} onChange={e => { const a = [...qTees]; a[i] = e.target.value; setQTees(a); }} placeholder="10:55" />
-                  </div>
-                ))}
+                {Array.from({ length: pkgRounds }, (_, i) => {
+                  const isRest = (roundCourses[i] ?? "prv") === "none";
+                  return (
+                    <div key={i}>
+                      <label style={{ ...lbl, fontSize: "11px" }}>{i+1}일차</label>
+                      {isRest
+                        ? <div style={{ ...inp, background: "#f5f5f5", color: "#aaa", fontSize: "12px", fontWeight: "700", textAlign: "center" }}>휴식</div>
+                        : <input type="text" style={inp} value={qTees[i] || ""} onChange={e => { const a = [...qTees]; a[i] = e.target.value; setQTees(a); }} placeholder="10:55" />}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -2291,10 +2312,13 @@ export default function DomesticGolf() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                     <span style={{ fontSize: "15px", fontWeight: "900", color: "#111" }}>{i+1}일차</span>
-                    {qTees[i] && <span style={{ fontSize: "14px", fontWeight: "900", color: "#c0392b" }}>T/O {qTees[i]}</span>}
-                    {!qTees[i] && <span style={{ fontSize: "11px", color: "#999" }}>{r.teeIdx === 1 ? "오후 2부" : "오전 1부"}</span>}
+                    {r.rest && <span style={{ fontSize: "11px", color: "#999" }}>휴식</span>}
+                    {!r.rest && qTees[i] && <span style={{ fontSize: "14px", fontWeight: "900", color: "#c0392b" }}>T/O {qTees[i]}</span>}
+                    {!r.rest && !qTees[i] && <span style={{ fontSize: "11px", color: "#999" }}>{r.teeIdx === 1 ? "오후 2부" : "오전 1부"}</span>}
                   </div>
-                  <div style={{ fontSize: "13px", color: "#444", fontWeight: "600" }}>⛳ {r.cn} 18홀 라운딩</div>
+                  {r.rest
+                    ? <div style={{ fontSize: "13px", color: "#888", fontWeight: "600" }}>🏨 자유 일정 (라운딩 없음)</div>
+                    : <div style={{ fontSize: "13px", color: "#444", fontWeight: "600" }}>⛳ {r.cn} 18홀 라운딩</div>}
                 </div>
               </div>
             ))}
@@ -2304,6 +2328,7 @@ export default function DomesticGolf() {
           {(() => {
             const shownKeys = [];
             const courseCards = calc.rounds.filter(r => {
+              if (r.rest) return false;
               if (shownKeys.includes(r.courseKey)) return false;
               shownKeys.push(r.courseKey); return true;
             });
