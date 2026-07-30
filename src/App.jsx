@@ -246,7 +246,7 @@ const comboLabel = (combo) => {
   if (!combo) return "";
   // pipe 형식: "prv|pub|prv|prv"
   if (combo.includes("|")) {
-    return combo.split("|").map(c => c === "prv" ? "회원제" : "대중제").join("+");
+    return combo.split("|").map(c => c === "prv" ? "회원제" : c === "none" ? "휴식" : "대중제").join("+");
   }
   // 구형 키 형식 직접 변환
   const map = {
@@ -611,13 +611,16 @@ export default function DomesticGolf() {
       const ss = season(ds);
       const dt = dayType(ds);
       const courseKey = courseArr[i] ?? "prv";
+      if (courseKey === "none") {
+        return { gf: 0, sur: 0, cn: "", ds, teeIdx: 0, rest: true };
+      }
       const course = prod.courses[courseKey];
       const teeTypeArr = [r.teeType1??1, r.teeType2??0, r.teeType3??0, r.teeType4??0];
       const teeIdx = teeTypeArr[i] ?? 0;
       const tee2Sur = (i > 0 && teeIdx === 1) ? 20000 : 0;
       const basGf = (course?.[ss]?.[dt]?.[teeIdx] || 0) + 2500 + tee2Sur;
       const sur = teeNums[i] || 0;
-      return { gf: basGf + (showTeeSur ? sur : 0), sur, cn: prod.courseNames[courseKey], ds, teeIdx };
+      return { gf: basGf + (showTeeSur ? sur : 0), sur, cn: prod.courseNames[courseKey], ds, teeIdx, rest: false };
     });
     const gfTotal = gfList.reduce((s, g) => s + g.gf, 0);
 
@@ -627,7 +630,8 @@ export default function DomesticGolf() {
     let bfNights2 = 0;
     if (r.bfIncluded !== false) {
       for (let i = 0; i < numNights; i++) {
-        if ((gfList[i + 1]?.teeIdx ?? 0) === 0) bfNights2++;
+        const next = gfList[i + 1];
+        if (next && !next.rest && next.teeIdx === 0) bfNights2++;
       }
     }
     const bfPP2 = bfRate2 * bfNights2;
@@ -718,9 +722,11 @@ export default function DomesticGolf() {
     // 1박당 조식 단가 계산
     const bfUnit = (inv.bfNights > 0 && inv.bfPP > 0) ? Math.round(inv.bfPP / inv.bfNights) : 0;
     let golfTotal = 0;
-    for (let i = 0; i < inv.gfList.length && i < 4; i++) {
+    let rowCursor = 0; // 휴식일(골프 없음)은 신청서 골프 행에서 제외하고 순서대로 채움
+    for (let i = 0; i < inv.gfList.length && rowCursor < 4; i++) {
       const g = inv.gfList[i];
-      const row = roundRows[i];
+      if (g.rest) continue;
+      const row = roundRows[rowCursor++];
       const courseLabel = courseKeyToLabel(inv.courseArr[i] || "prv");
       const teeTime = teeTimes[i] || "";
       // 홀딩시간: 티오프 시간만 표기 (부 표시 제거)
@@ -1102,11 +1108,11 @@ export default function DomesticGolf() {
                     {(inv.gfList || [
                       { cn: inv.cn1, teeIdx: 1, gf: inv.gf1, sur: inv.teeSur1||0, ds: r.depDate },
                       { cn: inv.cn2, teeIdx: 0, gf: inv.gf2, sur: inv.teeSur2||0, ds: addDays(r.depDate,1) },
-                    ]).map((g, i) => {
-                      const tees = [r.tee1, r.tee2, r.tee3, r.tee4]; const teeStr = tees[i] || "";
-                      const label = "⛳ " + (i+1) + "일차 " + g.cn + " " + (g.teeIdx===1?"2부":"1부") + (teeStr ? " T/O " + teeStr : "");
+                    ]).map((g, i) => ({ ...g, day: i + 1 })).filter(g => !g.rest).map(g => {
+                      const tees = [r.tee1, r.tee2, r.tee3, r.tee4]; const teeStr = tees[g.day - 1] || "";
+                      const label = "⛳ " + g.day + "일차 " + g.cn + " " + (g.teeIdx===1?"2부":"1부") + (teeStr ? " T/O " + teeStr : "");
                       return (
-                        <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                        <tr key={g.day} style={{ borderBottom: "1px solid #f0f0f0" }}>
                           <td style={{ padding: "6px 4px", color: "#555", fontSize: "13px" }}>{label}</td>
                           <td style={{ padding: "6px 4px", textAlign: "right" }}>₩{fmt2(g.gf)}</td>
                         </tr>
@@ -1267,21 +1273,27 @@ export default function DomesticGolf() {
                     const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
                     return { [rcKey]: newRc, combo: arr.join("|") };
                   };
+                  const isRestDay = rc === "none";
                   return (
-                    <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center", padding: "10px", background: G.lighter, border: "1px solid "+G.border, borderRadius: "8px", flexWrap: "wrap" }}>
-                      <div style={{ minWidth: "48px", fontSize: "13px", fontWeight: "800", color: G.primary }}>{i+1}일차</div>
-                      <input style={{ ...inp, width: "85px", padding: "8px 6px", textAlign: "center" }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"14:00":"07:00"} />
-                      <select style={{ ...inp, width: "64px", padding: "8px 4px" }} value={tt} onChange={e => setResForm(p => ({...p, [ttKey]: parseInt(e.target.value)}))}>
-                        <option value={0}>1부</option>
-                        <option value={1}>2부</option>
-                      </select>
+                    <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center", padding: "10px", background: isRestDay ? "#f5f5f5" : G.lighter, border: "1px solid "+(isRestDay ? "#ddd" : G.border), borderRadius: "8px", flexWrap: "wrap" }}>
+                      <div style={{ minWidth: "48px", fontSize: "13px", fontWeight: "800", color: isRestDay ? "#95a5a6" : G.primary }}>{i+1}일차</div>
+                      {!isRestDay && <>
+                        <input style={{ ...inp, width: "85px", padding: "8px 6px", textAlign: "center" }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"14:00":"07:00"} />
+                        <select style={{ ...inp, width: "64px", padding: "8px 4px" }} value={tt} onChange={e => setResForm(p => ({...p, [ttKey]: parseInt(e.target.value)}))}>
+                          <option value={0}>1부</option>
+                          <option value={1}>2부</option>
+                        </select>
+                      </>}
                       <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("prv")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(rc==="prv"?"#2980b9":"#ddd"), background: rc==="prv"?"#ebf5fb":"#fff", color: rc==="prv"?"#2980b9":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>회원</button>
                       <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("pub")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(rc==="pub"?"#27ae60":"#ddd"), background: rc==="pub"?"#eafaf1":"#fff", color: rc==="pub"?"#27ae60":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>대중</button>
-                      <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", padding: "6px 8px", borderRadius: "6px", background: bfChecked ? "#eafaf1" : "#fafafa", border: "1px solid " + (bfChecked ? "#27ae60" : "#eee") }}>
-                        <input type="checkbox" checked={bfChecked} onChange={e => setResForm(p => ({...p, [bfKey]: e.target.checked}))} style={{ width: "14px", height: "14px", accentColor: G.primary, cursor: "pointer" }} />
-                        <span style={{ fontSize: "12px", fontWeight: "700", color: bfChecked?"#27ae60":"#888" }}>조식</span>
-                      </label>
-                      <input style={{ ...inp, width: "100px", padding: "8px 6px", textAlign: "right" }} type="number" value={resForm[surKey]||""} onChange={e => setResForm(p => ({...p, [surKey]: parseInt(e.target.value)||0}))} placeholder="추가금" />
+                      <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("none")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(isRestDay?"#95a5a6":"#ddd"), background: isRestDay?"#7f8c8d":"#fff", color: isRestDay?"#fff":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>골프 없음</button>
+                      {!isRestDay ? <>
+                        <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", padding: "6px 8px", borderRadius: "6px", background: bfChecked ? "#eafaf1" : "#fafafa", border: "1px solid " + (bfChecked ? "#27ae60" : "#eee") }}>
+                          <input type="checkbox" checked={bfChecked} onChange={e => setResForm(p => ({...p, [bfKey]: e.target.checked}))} style={{ width: "14px", height: "14px", accentColor: G.primary, cursor: "pointer" }} />
+                          <span style={{ fontSize: "12px", fontWeight: "700", color: bfChecked?"#27ae60":"#888" }}>조식</span>
+                        </label>
+                        <input style={{ ...inp, width: "100px", padding: "8px 6px", textAlign: "right" }} type="number" value={resForm[surKey]||""} onChange={e => setResForm(p => ({...p, [surKey]: parseInt(e.target.value)||0}))} placeholder="추가금" />
+                      </> : <span style={{ fontSize: "12px", color: "#95a5a6", fontWeight: "700" }}>숙박만 (라운딩 없음)</span>}
                     </div>
                   );
                 })}
@@ -1395,21 +1407,27 @@ export default function DomesticGolf() {
                     const arr = Array.from({length: PACKAGES[resForm.nights]?.rounds||2}, (_, j) => j===i ? newRc : (resForm["roundCourse"+(j+1)] || "prv"));
                     return { [rcKey]: newRc, combo: arr.join("|") };
                   };
+                  const isRestDay = rc === "none";
                   return (
-                    <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center", padding: "10px", background: G.lighter, border: "1px solid "+G.border, borderRadius: "8px", flexWrap: "wrap" }}>
-                      <div style={{ minWidth: "48px", fontSize: "13px", fontWeight: "800", color: G.primary }}>{i+1}일차</div>
-                      <input style={{ ...inp, width: "85px", padding: "8px 6px", textAlign: "center" }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"14:00":"07:00"} />
-                      <select style={{ ...inp, width: "64px", padding: "8px 4px" }} value={tt} onChange={e => setResForm(p => ({...p, [ttKey]: parseInt(e.target.value)}))}>
-                        <option value={0}>1부</option>
-                        <option value={1}>2부</option>
-                      </select>
+                    <div key={i} style={{ display: "flex", gap: "6px", alignItems: "center", padding: "10px", background: isRestDay ? "#f5f5f5" : G.lighter, border: "1px solid "+(isRestDay ? "#ddd" : G.border), borderRadius: "8px", flexWrap: "wrap" }}>
+                      <div style={{ minWidth: "48px", fontSize: "13px", fontWeight: "800", color: isRestDay ? "#95a5a6" : G.primary }}>{i+1}일차</div>
+                      {!isRestDay && <>
+                        <input style={{ ...inp, width: "85px", padding: "8px 6px", textAlign: "center" }} type="text" value={resForm[tk]||""} onChange={e => setResForm(p => ({...p, [tk]: e.target.value}))} placeholder={i===0?"14:00":"07:00"} />
+                        <select style={{ ...inp, width: "64px", padding: "8px 4px" }} value={tt} onChange={e => setResForm(p => ({...p, [ttKey]: parseInt(e.target.value)}))}>
+                          <option value={0}>1부</option>
+                          <option value={1}>2부</option>
+                        </select>
+                      </>}
                       <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("prv")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(rc==="prv"?"#2980b9":"#ddd"), background: rc==="prv"?"#ebf5fb":"#fff", color: rc==="prv"?"#2980b9":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>회원</button>
                       <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("pub")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(rc==="pub"?"#27ae60":"#ddd"), background: rc==="pub"?"#eafaf1":"#fff", color: rc==="pub"?"#27ae60":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>대중</button>
-                      <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", padding: "6px 8px", borderRadius: "6px", background: bfChecked ? "#eafaf1" : "#fafafa", border: "1px solid " + (bfChecked ? "#27ae60" : "#eee") }}>
-                        <input type="checkbox" checked={bfChecked} onChange={e => setResForm(p => ({...p, [bfKey]: e.target.checked}))} style={{ width: "14px", height: "14px", accentColor: G.primary, cursor: "pointer" }} />
-                        <span style={{ fontSize: "12px", fontWeight: "700", color: bfChecked?"#27ae60":"#888" }}>조식</span>
-                      </label>
-                      <input style={{ ...inp, width: "100px", padding: "8px 6px", textAlign: "right" }} type="number" value={resForm[surKey]||""} onChange={e => setResForm(p => ({...p, [surKey]: parseInt(e.target.value)||0}))} placeholder="추가금" />
+                      <button type="button" onClick={() => setResForm(p => ({...p, ...updateCombo("none")}))} style={{ padding: "7px 10px", borderRadius: "6px", border: "2px solid "+(isRestDay?"#95a5a6":"#ddd"), background: isRestDay?"#7f8c8d":"#fff", color: isRestDay?"#fff":"#aaa", fontWeight: "800", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>골프 없음</button>
+                      {!isRestDay ? <>
+                        <label style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", padding: "6px 8px", borderRadius: "6px", background: bfChecked ? "#eafaf1" : "#fafafa", border: "1px solid " + (bfChecked ? "#27ae60" : "#eee") }}>
+                          <input type="checkbox" checked={bfChecked} onChange={e => setResForm(p => ({...p, [bfKey]: e.target.checked}))} style={{ width: "14px", height: "14px", accentColor: G.primary, cursor: "pointer" }} />
+                          <span style={{ fontSize: "12px", fontWeight: "700", color: bfChecked?"#27ae60":"#888" }}>조식</span>
+                        </label>
+                        <input style={{ ...inp, width: "100px", padding: "8px 6px", textAlign: "right" }} type="number" value={resForm[surKey]||""} onChange={e => setResForm(p => ({...p, [surKey]: parseInt(e.target.value)||0}))} placeholder="추가금" />
+                      </> : <span style={{ fontSize: "12px", color: "#95a5a6", fontWeight: "700" }}>숙박만 (라운딩 없음)</span>}
                     </div>
                   );
                 })}
