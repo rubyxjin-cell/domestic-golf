@@ -125,10 +125,12 @@ const G = {
 
 // 연휴, 연휴전일, 공휴일 그린피 특별요금 날짜
 // 9월 추석연휴(객실): 9/24~9/26 연휴요금, 9/23 연휴전일 (그린피는 시즌 s12로 처리)
-const HOLIDAY_DATES    = ["2026-05-01","2026-05-02","2026-05-03","2026-05-23","2026-05-24","2026-09-24","2026-09-25","2026-09-26"];
-const HOLIDAY_EVE      = ["2026-04-30","2026-05-22","2026-09-23"];
-// 그린피 일요일 요금 적용 특별 날짜 (요일 무관)
-const SUNDAY_RATE_DATES = ["2026-05-01","2026-05-05","2026-05-25","2026-06-03","2026-08-17"];
+// 10월 연휴(객실): 10/3~10/4(개천절), 10/9~10/10(한글날) / 연휴전일 10/2, 10/8
+const HOLIDAY_DATES    = ["2026-05-01","2026-05-02","2026-05-03","2026-05-23","2026-05-24","2026-09-24","2026-09-25","2026-09-26","2026-10-03","2026-10-04","2026-10-09","2026-10-10"];
+// 연휴전일: 값은 적용할 성수기 요금 인덱스 (1=성수기 금요일, 2=성수기 토요일) — 각 월 요금표에 명시된 대로
+const HOLIDAY_EVE      = { "2026-04-30": 2, "2026-05-22": 2, "2026-09-23": 2, "2026-10-02": 1, "2026-10-08": 1 };
+// 그린피 일요일 요금 적용 특별 날짜 (요일 무관) — 10/5(대체공휴일)·10/9(한글날)
+const SUNDAY_RATE_DATES = ["2026-05-01","2026-05-05","2026-05-25","2026-06-03","2026-08-17","2026-10-05","2026-10-09"];
 // 그린피 토요일 요금 적용 특별 날짜 (요일 무관)
 const SATURDAY_RATE_DATES = ["2026-08-16"];
 // 날짜 더하기 (timezone 문제 없는 로컬 계산)
@@ -139,7 +141,7 @@ const addDays = (ds, n) => {
 };
 
 const isHoliday    = ds => HOLIDAY_DATES.includes(ds);
-const isHolidayEve = ds => HOLIDAY_EVE.includes(ds);
+const isHolidayEve = ds => Object.prototype.hasOwnProperty.call(HOLIDAY_EVE, ds);
 
 // 상품 목록 (골프장 추가 시 여기에만 추가하면 됨)
 const PRODUCT_LIST = [
@@ -158,7 +160,7 @@ const AGTS = [
 const DEF = {
   alpensia: {
     name: "알펜시아 골프패키지", sub: "",
-    seasons: { s1: "오픈~4/09", s2: "4/10~4/30", s3: "5/01~5/31", s4: "6/01~6/30", s5: "7/01~7/16", s6: "7/17~7/25", s7: "7/26~8/09", s8: "8/10~8/17", s9: "8/18~8/31", s10: "9/01~9/13", s11: "9/14~9/23", s12: "추석 9/24~9/27", s13: "9/28~10/1" }, seasonCut: "2026-04-10", seasonCut2: "2026-05-01", seasonCut3: "2026-06-01", seasonCut4: "2026-07-01", seasonCut5: "2026-07-17", seasonCut6: "2026-07-26", seasonCut7: "2026-08-10", seasonCut8: "2026-08-18", seasonCut9: "2026-09-01", seasonCut10: "2026-09-14", seasonCut11: "2026-09-24", seasonCut12: "2026-09-28",
+    seasons: { s1: "오픈~4/09", s2: "4/10~4/30", s3: "5/01~5/31", s4: "6/01~6/30", s5: "7/01~7/16", s6: "7/17~7/25", s7: "7/26~8/09", s8: "8/10~8/17", s9: "8/18~8/31", s10: "9/01~9/13", s11: "9/14~9/23", s12: "추석 9/24~9/27", s13: "9/28~9/30", s14: "10/01", s15: "10/02~10/31", s16: "11/01~11/02" }, seasonCut: "2026-04-10", seasonCut2: "2026-05-01", seasonCut3: "2026-06-01", seasonCut4: "2026-07-01", seasonCut5: "2026-07-17", seasonCut6: "2026-07-26", seasonCut7: "2026-08-10", seasonCut8: "2026-08-18", seasonCut9: "2026-09-01", seasonCut10: "2026-09-14", seasonCut11: "2026-09-24", seasonCut12: "2026-09-28", seasonCut13: "2026-10-01", seasonCut14: "2026-10-02", seasonCut15: "2026-11-01",
     courseNames: { pub: "700GC (대중제)", prv: "알펜시아CC (회원제)" },
     courses: {
       pub: {
@@ -175,6 +177,9 @@ const DEF = {
         s11: { weekday: [100000, 100000], friday: [110000, 120000], saturday: [150000, 160000], sunday: [160000, 150000] },
         s12: { weekday: [160000, 180000], friday: [160000, 180000], saturday: [160000, 180000], sunday: [160000, 180000] },
         s13: { weekday: [100000, 100000], friday: [110000, 120000], saturday: [150000, 160000], sunday: [160000, 150000] },
+        s14: { weekday: [100000, 100000], friday: [110000, 120000], saturday: [150000, 160000], sunday: [160000, 150000] },
+        s15: { weekday: [100000, 120000], friday: [120000, 130000], saturday: [160000, 170000], sunday: [170000, 150000] },
+        s16: { weekday: [100000, 120000], friday: [120000, 130000], saturday: [160000, 170000], sunday: [170000, 150000] },
       },
       prv: {
         s1: { weekday: [70000, 80000], friday: [80000, 90000], saturday: [130000, 140000], sunday: [130000, 120000] },
@@ -190,14 +195,19 @@ const DEF = {
         s11: { weekday: [110000, 120000], friday: [130000, 150000], saturday: [180000, 190000], sunday: [190000, 180000] },
         s12: { weekday: [180000, 200000], friday: [180000, 200000], saturday: [180000, 200000], sunday: [180000, 200000] },
         s13: { weekday: [110000, 120000], friday: [130000, 150000], saturday: [180000, 190000], sunday: [190000, 180000] },
+        s14: { weekday: [110000, 120000], friday: [130000, 150000], saturday: [180000, 190000], sunday: [190000, 180000] },
+        s15: { weekday: [120000, 140000], friday: [140000, 150000], saturday: [180000, 190000], sunday: [190000, 170000] },
+        s16: { weekday: [120000, 140000], friday: [140000, 150000], saturday: [180000, 190000], sunday: [190000, 170000] },
       },
     },
+    // 시즌 객실요금 [주중(일~목), 금, 토]
+    // s16(11/1~11/2)은 11월 요금표의 '일·목' 열 기준 — 그린피가 11/2까지라 실제로 잡히는 11월 숙박은 11/1(일) 하루뿐
     rooms: {
-      IC:    { s1: [100000, 140000, 140000], s2: [110000, 150000, 150000], s3: [120000, 160000, 190000], s4: [120000, 160000, 200000], s5: [120000, 160000, 190000], s6: [220000, 230000, 240000], s7: [240000, 240000, 240000], s8: [220000, 230000, 240000], s9: [140000, 160000, 190000], s10: [140000, 160000, 190000], s11: [140000, 160000, 190000], s12: [140000, 160000, 190000], s13: [140000, 160000, 190000], holiday: [220000, 230000, 240000], occ: 2 },
-      HIR:   { s1: [80000,  100000, 100000], s2: [80000,  100000, 100000], s3: [100000, 120000, 150000], s4: [100000, 120000, 160000], s5: [100000, 120000, 150000], s6: [190000, 210000, 220000], s7: [200000, 200000, 200000], s8: [190000, 210000, 220000], s9: [120000, 120000, 150000], s10: [120000, 120000, 150000], s11: [120000, 120000, 150000], s12: [120000, 120000, 150000], s13: [120000, 120000, 150000], holiday: [200000, 210000, 220000], occ: 2 },
-      HIS33: { s1: [80000,  140000, 140000], s2: [100000, 160000, 160000], s3: [140000, 190000, 240000], s4: [140000, 190000, 250000], s5: [140000, 190000, 240000], s6: [240000, 270000, 300000], s7: [300000, 300000, 300000], s8: [240000, 270000, 300000], s9: [160000, 190000, 240000], s10: [120000, 190000, 240000], s11: [120000, 190000, 240000], s12: [120000, 190000, 240000], s13: [120000, 190000, 240000], holiday: [240000, 270000, 300000], occ: 4 },
+      IC:    { s1: [100000, 140000, 140000], s2: [110000, 150000, 150000], s3: [120000, 160000, 190000], s4: [120000, 160000, 200000], s5: [120000, 160000, 190000], s6: [220000, 230000, 240000], s7: [240000, 240000, 240000], s8: [220000, 230000, 240000], s9: [140000, 160000, 190000], s10: [140000, 160000, 190000], s11: [140000, 160000, 190000], s12: [140000, 160000, 190000], s13: [140000, 160000, 190000], s14: [140000, 160000, 200000], s15: [140000, 160000, 200000], s16: [140000, 160000, 190000], holiday: [220000, 230000, 240000], holidayOct: [220000, 230000, 240000], occ: 2 },
+      HIR:   { s1: [80000,  100000, 100000], s2: [80000,  100000, 100000], s3: [100000, 120000, 150000], s4: [100000, 120000, 160000], s5: [100000, 120000, 150000], s6: [190000, 210000, 220000], s7: [200000, 200000, 200000], s8: [190000, 210000, 220000], s9: [120000, 120000, 150000], s10: [120000, 120000, 150000], s11: [120000, 120000, 150000], s12: [120000, 120000, 150000], s13: [120000, 120000, 150000], s14: [100000, 120000, 160000], s15: [100000, 120000, 160000], s16: [120000, 120000, 150000], holiday: [200000, 210000, 220000], holidayOct: [190000, 210000, 220000], occ: 2 },
+      HIS33: { s1: [80000,  140000, 140000], s2: [100000, 160000, 160000], s3: [140000, 190000, 240000], s4: [140000, 190000, 250000], s5: [140000, 190000, 240000], s6: [240000, 270000, 300000], s7: [300000, 300000, 300000], s8: [240000, 270000, 300000], s9: [160000, 190000, 240000], s10: [120000, 190000, 240000], s11: [120000, 190000, 240000], s12: [120000, 190000, 240000], s13: [120000, 190000, 240000], s14: [140000, 190000, 250000], s15: [140000, 190000, 250000], s16: [120000, 190000, 240000], holiday: [240000, 270000, 300000], holidayOct: [240000, 270000, 300000], occ: 4 },
     },
-    breakfast: { s1: 20000, s2: 20000, s3: 15000, s4: 15000, s5: 15000, s6: 15000, s7: 15000, s8: 15000, s9: 15000, s10: 15000, s11: 15000, s12: 15000, s13: 15000 }, surcharge: 20000,
+    breakfast: { s1: 20000, s2: 20000, s3: 15000, s4: 15000, s5: 15000, s6: 15000, s7: 15000, s8: 15000, s9: 15000, s10: 15000, s11: 15000, s12: 15000, s13: 15000, s14: 15000, s15: 15000, s16: 15000 }, surcharge: 20000,
     courseIntro: {
       pub: "평창 알펜시아 700 G.C는 세계 명문 골프코스의 홀을 체험할 수 있게 만든 신개념의 레플리카 골프 코스(Replica Golf Course)로 구성되어 있습니다.|18홀 72par 6,659yard",
       prv: "전 세계에 200개 이상의 골프코스를 설계 및 개조를 한 세계적인 골프코스 설계자인 Robert Trent Jones, Jr. 가 대관령의 자연과 코스 주변의 아름다움을 그의 코스 디자인 도면에 조화롭게 그려낸 알펜시아 ALPENSIA Country Club은 또 하나의 세계적인 명품 골프코스로 평가되고 있습니다.|27홀 108par 9,905yard",
@@ -215,6 +225,11 @@ roomPhoto: { IC: [], HIR: [], HIS33: [] },    notes: [
       "[9월] 1부 07:30 이후 / 2부 12:30 이전 요청 시 추가금 +2만원",
       "[9월] 추석연휴(9/24~9/27) 그린피: 대중제 1부16만/2부18만, 회원제 1부18만/2부20만",
       "[9월] 객실 연휴요금 9/24~9/26 적용, 9/23은 성수기 토요일 요금",
+      "[10월] 조식+커피 15,000원/1인 (패키지팀 적용, 1부팀 포함)",
+      "[10월] 1부 07:40 이후 요청 시 추가금 +2만원",
+      "[10월] 연휴 10/5·10/9 그린피는 일요일 요금 적용",
+      "[10월] 객실 연휴요금 10/3~10/4·10/9~10/10, 연휴전일 10/2·10/8은 성수기 금요일 요금",
+      "[10월] 예약 오픈 6주전 (대중제 월요일 / 회원제 목요일)",
       "[대중제] 문의 6주전 / 확정 4주전 월요일 오픈",
       "[회원제] 문의 6주전 / 확정 4주전 수요일 오픈",
       "[회원제] 주말·연휴·극성수기 버스진입 불가",
@@ -419,11 +434,14 @@ export default function DomesticGolf() {
     if (ds < (prod?.seasonCut10 || "2026-09-14")) return "s10";
     if (ds < (prod?.seasonCut11 || "2026-09-24")) return "s11";
     if (ds < (prod?.seasonCut12 || "2026-09-28")) return "s12";
-    return "s13";
+    if (ds < (prod?.seasonCut13 || "2026-10-01")) return "s13";
+    if (ds < (prod?.seasonCut14 || "2026-10-02")) return "s14";
+    if (ds < (prod?.seasonCut15 || "2026-11-01")) return "s15";
+    return "s16";
   };
-  // 요금표 적용 한계: 마지막 라운드일이 10/1을 넘으면 요금 미정 구간 → 계산 차단
-  // (1박2일: ~9/30 출발, 2박3일: ~9/29 출발, 3박4일: ~9/28 출발)
-  const dv = date && addDays(date, (pkgRounds || 2) - 1) <= "2026-10-01";
+  // 요금표 적용 한계: 마지막 라운드일이 11/2를 넘으면 요금 미정 구간 → 계산 차단
+  // (1박2일: ~11/1 출발, 2박3일: ~10/31 출발, 3박4일: ~10/30 출발)
+  const dv = date && addDays(date, (pkgRounds || 2) - 1) <= "2026-11-02";
 
   // 객실 요금 조회 (연휴/연휴전일 처리 포함)
   const getRmRate = (rmD2, ds) => {
@@ -431,19 +449,22 @@ export default function DomesticGolf() {
     const d = dow(ds);
     const rmIdx = d === 6 ? 2 : d === 5 ? 1 : 0; // 토=2, 금=1, 주중=0
     if (isHoliday(ds) || isHolidayEve(ds)) {
-      // 연휴: 요일별 연휴요금 / 연휴전일: 성수기 토요일 요금 = holiday[2] (26년 9월 요금표 기준)
-      const hIdx = isHolidayEve(ds) ? 2 : rmIdx;
-      return (rmD2.holiday?.[hIdx]) || (rmD2[season(ds)]?.[rmIdx]) || 0;
+      // 연휴: 요일별 연휴요금 / 연휴전일: 요금표에 명시된 성수기 요일 요금 (HOLIDAY_EVE 값)
+      const hIdx = isHolidayEve(ds) ? HOLIDAY_EVE[ds] : rmIdx;
+      // 10월 이후 성수기·연휴 요금은 26년 10월 요금표 기준 (HIR 주중이 다름)
+      const hArr = (ds >= "2026-10-01" && rmD2.holidayOct) ? rmD2.holidayOct : rmD2.holiday;
+      return (hArr?.[hIdx]) || (rmD2[season(ds)]?.[rmIdx]) || 0;
     }
     return rmD2[season(ds)]?.[rmIdx] || 0;
   };
 
-  // 티오프 시간 기준 추가금: 1부 7:30 이후 / 2부 13:00 이전 → +2만원
+  // 티오프 시간 기준 추가금: 1부 7:30(10/2 라운딩부터 7:40) 이후 / 2부 13:00 이전 → +2만원
   const teeToMin = t => { if (!t) return null; const [h,m] = t.split(":").map(Number); return h*60+(m||0); };
-  const getTeeSur = (tee, isD1) => {
+  const getTeeSur = (tee, isD1, ds) => {
     const m = teeToMin(tee);
     if (m === null) return 0;
-    if (isD1) return m > 7*60+30 ? 20000 : 0;   // 1일차(2부): 7:30 이후
+    const earlyCut = (ds && ds >= "2026-10-02") ? 7*60+40 : 7*60+30;
+    if (isD1) return m > earlyCut ? 20000 : 0;   // 1일차(2부): 기준시각 이후
     return m < 13*60 ? 20000 : 0;                 // 2일차(1부): 13:00 이전
   };
   const getGfDayType = (ds) => dayType(ds);
@@ -497,6 +518,9 @@ export default function DomesticGolf() {
               seasonCut10: v.seasonCut10 ?? DEF[k]?.seasonCut10,
               seasonCut11: v.seasonCut11 ?? DEF[k]?.seasonCut11,
               seasonCut12: v.seasonCut12 ?? DEF[k]?.seasonCut12,
+              seasonCut13: v.seasonCut13 ?? DEF[k]?.seasonCut13,
+              seasonCut14: v.seasonCut14 ?? DEF[k]?.seasonCut14,
+              seasonCut15: v.seasonCut15 ?? DEF[k]?.seasonCut15,
               seasons: { ...(DEF[k]?.seasons || {}), ...(v.seasons || {}) },
               surcharge: v.surcharge ?? DEF[k]?.surcharge,
               sub: (DEF[k]?.sub !== undefined) ? DEF[k].sub : (v.sub || ""),
@@ -1683,7 +1707,7 @@ export default function DomesticGolf() {
       const course = prod.courses[courseKey];
       const dt = getGfDayType(ds);
       const isD1 = i === 0;
-      const teeSur = getTeeSur(qTees[i] || "", isD1);
+      const teeSur = getTeeSur(qTees[i] || "", isD1, ds);
       const tee2Sur = (!isD1 && teeIdx === 1) ? 20000 : 0;
       const rawGf = (course?.[ss]?.[dt]?.[teeIdx] || 0) + teeSur + tee2Sur;
       const gf = rawGf + 2500;
@@ -1848,7 +1872,7 @@ export default function DomesticGolf() {
             <span style={{ fontSize: "14px", fontWeight: "700", color: "#888" }}>2026년</span>
             <select value={month} onChange={e => { setMonth(parseInt(e.target.value)); setDay(0); }} style={{ ...inp, width: "auto", padding: "10px 16px", fontWeight: "700", fontSize: "15px" }}>
               <option value={0}>월</option>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].filter(m => {
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].filter(m => {
                 const today = new Date(); today.setHours(0,0,0,0);
                 const lastDayOfMonth = new Date(2026, m, 0);
                 return lastDayOfMonth >= today;
@@ -1882,7 +1906,7 @@ export default function DomesticGolf() {
               })}
             </div>
           )}
-          {date && !dv && <div style={{ marginTop: "10px", padding: "10px", background: "#fdecea", borderRadius: "8px", fontSize: "13px", color: "#c0392b", fontWeight: "700" }}>⚠️ 요금표는 10/1 라운딩까지 적용됩니다. (1박2일 9/30 · 2박3일 9/29 · 3박4일 9/28 출발까지)</div>}
+          {date && !dv && <div style={{ marginTop: "10px", padding: "10px", background: "#fdecea", borderRadius: "8px", fontSize: "13px", color: "#c0392b", fontWeight: "700" }}>⚠️ 요금표는 11/2 라운딩까지 적용됩니다. (1박2일 11/1 · 2박3일 10/31 · 3박4일 10/30 출발까지)</div>}
         </div>
 
         {/* 라운드별 코스 + 티타임 선택 */}
@@ -2456,13 +2480,16 @@ export default function DomesticGolf() {
             <div><label style={lbl}>시즌10→11 구분일</label><input type="date" style={inp} value={p.seasonCut10 || ""} onChange={e => upProd("seasonCut10", e.target.value)} /></div>
             <div><label style={lbl}>시즌11→12 구분일</label><input type="date" style={inp} value={p.seasonCut11 || ""} onChange={e => upProd("seasonCut11", e.target.value)} /></div>
             <div><label style={lbl}>시즌12→13 구분일</label><input type="date" style={inp} value={p.seasonCut12 || ""} onChange={e => upProd("seasonCut12", e.target.value)} /></div>
+            <div><label style={lbl}>시즌13→14 구분일</label><input type="date" style={inp} value={p.seasonCut13 || ""} onChange={e => upProd("seasonCut13", e.target.value)} /></div>
+            <div><label style={lbl}>시즌14→15 구분일</label><input type="date" style={inp} value={p.seasonCut14 || ""} onChange={e => upProd("seasonCut14", e.target.value)} /></div>
+            <div><label style={lbl}>시즌15→16 구분일</label><input type="date" style={inp} value={p.seasonCut15 || ""} onChange={e => upProd("seasonCut15", e.target.value)} /></div>
             <div><label style={lbl}>2부+2부 추가금</label><input type="number" style={inp} value={p.surcharge} onChange={e => upProd("surcharge", parseInt(e.target.value) || 0)} /></div>
           </div>
           <div style={{ marginTop: "16px", padding: "14px", background: "#fafafa", borderRadius: "10px" }}>
             <div style={{ fontSize: "13px", fontWeight: "700", color: "#555", marginBottom: "10px" }}>🥐 조식 요금 (1인 기준, 시즌별)</div>
             <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr 1fr" : "1fr 1fr 1fr", gap: "10px" }}>
-              {["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12", "s13"].map(sn => {
-                const defBf = { s1: 20000, s2: 20000, s3: 15000, s4: 15000, s5: 15000, s6: 15000, s7: 15000, s8: 15000, s9: 15000, s10: 15000, s11: 15000, s12: 15000, s13: 15000 };
+              {["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "s16"].map(sn => {
+                const defBf = { s1: 20000, s2: 20000, s3: 15000, s4: 15000, s5: 15000, s6: 15000, s7: 15000, s8: 15000, s9: 15000, s10: 15000, s11: 15000, s12: 15000, s13: 15000, s14: 15000, s15: 15000, s16: 15000 };
                 const bfObj = (typeof p.breakfast === 'object' && p.breakfast) ? p.breakfast : defBf;
                 return (
                   <div key={sn}>
@@ -2478,7 +2505,7 @@ export default function DomesticGolf() {
         {Object.entries(p.courses).map(([cK, cD]) => (
           <div key={cK} style={sc}>
             <div style={{ fontSize: "15px", fontWeight: "800", color: G.primary, marginBottom: "12px" }}>⛳ {p.courseNames[cK]}</div>
-            {["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12", "s13"].map(sn => (
+            {["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "s16"].map(sn => (
               <div key={sn} style={{ marginBottom: "16px" }}>
                 <div style={{ fontSize: "13px", fontWeight: "700", color: "#555", marginBottom: "8px", background: "#f5f5f5", padding: "8px 12px", borderRadius: "8px" }}>시즌{sn.slice(1)} ({p.seasons[sn]})</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -2503,7 +2530,7 @@ export default function DomesticGolf() {
               <div style={{ fontSize: "13px", fontWeight: "700", marginBottom: "8px" }}>{rmLabel(rN)} ({rN})</div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                 <thead><tr style={{ background: "#f0f0f0" }}><th style={{ padding: "6px 8px", textAlign: "left" }}>시즌</th><th style={{ padding: "6px 8px", textAlign: "right" }}>주중</th><th style={{ padding: "6px 8px", textAlign: "right" }}>금요일</th><th style={{ padding: "6px 8px", textAlign: "right" }}>토요일</th></tr></thead>
-                <tbody>{["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12", "s13"].map(sn => (
+                <tbody>{["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "s16"].map(sn => (
                   <tr key={sn}>
                     <td style={{ padding: "4px 8px", fontWeight: "600" }}>시즌{sn.slice(1)}</td>
                     <td style={{ padding: "4px 8px" }}><input type="number" style={{ ...inp, textAlign: "right", padding: "6px 8px" }} value={rD[sn]?.[0] || 0} onChange={e => upRoom(rN, sn, 0, e.target.value)} /></td>
